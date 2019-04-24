@@ -1,0 +1,143 @@
+.TH waitpid 1 "waitpid" "2019-03-16" "@PACKAGE_STRING@"
+
+.SH NAME
+.IX Header "NAME"
+waitpid\~-\~wait until arbitrary PIDs exit
+
+.SH SYNOPSIS
+.IX Header "SYNOPSIS"
+waitpid [\fIOPTION\fR]... \fIPID\fR...
+
+.SH DESCRIPTION
+.IX Header "DESCRIPTION"
+waitpid accepts a list of process IDs (\fIPIDs\fR), and then checks them for
+termination.  Each \fIPID\fR is monitored from a separate thread.  When all
+\fIPIDs\fR have terminated,
+.IR waitpid (1)
+exits.
+
+.SH OPTIONS
+.IX Header "OPTIONS"
+.TP
+-D \fIDELAY\fR  (default: \fB0.5\fR)
+Delay in seconds between each polling event for a single \fIPID\fR polling
+thread.　When running on 64-bit Linux with \fICODE\fR set to anything other
+than \(lq\fBignore\fR\(rq, this argument is ignored (see option \(lq-C\(rq and
+\fIIMPLEMENTATION DETAILS\fR).
+
+.TP
+-C \fICODE\fR  (default: \fBignore\fR)
+Choose what to do with exit code of each process after all \fIPIDs\fR terminate.
+.RS
+.RS
+.TP
+\fB0\fR, \fBignore\fR
+Discard exit codes and return 0.
+.TP
+positive integer \fIN\fR
+Return the exit code of the \fIN\fR-th \fBPID\fR as specified on the command
+line, starting from 1.  For example, \(lqwaitpid -C2 43 42\(rq will return the exit
+code of PID 42.
+.TP
+\fBmin\fR, \fBmax\fR
+Return the least or largest exit code respectively.
+.TP
+\fBprint\fR
+Print a pair \(lqPID: EXIT_CODE\(rq for each \fBPID\fR in order specified on the
+command line, and return 0.
+
+.RE
+Please note that Unix does not offer any APIs to retrieve exit codes of arbitrary
+processes (see \fIIMPLEMENTATION DETAILS\fR).  Therefore, when exit codes are
+requested (i.e. when \(lq-C\(rq is not \fBignore\fR),
+.IR waitpid (1)
+uses
+.IR ptrace(2)
+to intercept exit syscalls.
+.RE
+.TP
+-h
+Display short help and program version, exit with \fBEXIT_FAILURE\fR.
+
+.SH IMPLEMENTATION DETAILS
+.IX Header "IMPLEMENTATION DETAILS"
+Under most circumstances,
+.IR waitpid (1)
+mostly tests termination by polling each \fIPID\fR in a separate thread,
+sleeping \fIDELAY\fR (\fB0.5\fR by default) seconds after each attempt.
+On Win32, waiting for a completed process is done with
+\fIWaitForSingleObject\fR, and \fIGetExitCodeProcess\fR gets the exit code.
+On Unix systems, \(lqpolling\(rq usually means sending a null signal via
+.IR kill (2),
+which does *not* return the exit code.  The closest thing to
+\fIWaitForSingleObject\fR/\fIGetExitCodeProcess\fR is
+.IR wait (2)
+and its status macros, which are only available to the parent of the inspectee;
+therefore, when exit status is requested,
+.IR waitpid (1)
+uses
+.IR ptrace (2)
+to determine process exit code (this is only implemented on 64-bit Linux).
+The
+.IR ptrace (2)
+approach is better than kill-polling in that it works as a blocking call, but
+it has a drawback in that it requires exclusivity and cannot be used with other
+ptrace programs.
+
+.SH EXAMPLES
+.IX Header "EXAMPLES"
+.PP
+.nf
+.RS
+$ pgrep make
+6401
+6402
+9168
+$ waitpid -Cprint $(pgrep make)
+6401: 0
+6402: 0
+9168: 1
+.RE
+.fi
+.PP
+Wait for all make processes to finish, then print their exit codes.
+.br
+.PP
+.nf
+.RS
+$ waitpid -C2 70 40 10
+.RE
+.fi
+.PP
+Wait for the three processes to finish, then return the exit code of PID 40.
+
+.SH BUGS
+.IX Header "BUGS"
+.nr step 1 1
+.IP \n[step] 4
+.IR ptrace (2)
+syscall intercept is only implemented for 64-bit Linux.
+.IP \n+[step]
+Since
+.IR ptrace (2)
+can only be used with a single tracer, exit code-intercepting Unix
+.IR waitpid (1)
+calls cannot be used simultaneously with any other ptrace program, such as
+.IR strace (1),
+.IR ltrace (1),
+or
+.IR gdb (1).
+.IP \n+[step]
+\(lq-C print\(rq prints all results on exit together, when it could print each
+N-th result as soon as it becomes available.  Not sure if bug.
+
+.SH SEE ALSO
+.IX Header "SEE ALSO"
+.IR pidof (1),
+.IR pgrep (1),
+.IR wait (2),
+.IR kill (3P),
+.IR exec (3),
+.IR ptrace (2),
+.IR GetExitCodeProcess (WinAPI),
+.IR WaitForSingleObject (WinAPI)

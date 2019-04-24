@@ -1,0 +1,384 @@
+/*
+ * Usage: waitpid [OPTION]... [--] PID...
+ * Wait until all PIDs exit.
+ *
+ *   waitpid(1) accepts a list of process IDs and then checks them
+ *   for termination.  When all PIDs terminate, waitpid(1) exits.
+ *
+ * OPTIONS
+ *   -D DELAY  (default: 0.5)
+ *         Set delay in seconds between polling events for each PID.  When running
+ *         on 64-bit Linux with CODE set to anything other than `ignore', DELAY
+ *         means nothing because instead of polling, ptrace(2) syscall intercept is
+ *         used instead.
+ *   -C CODE   (default: ignore)
+ *         Choose what to do with exit code of each PID after all PIDs terminate.
+ *         0, ignore ... waitpid(1) will return 0.  On 64-bit Linux, this is
+ *                       the only CODE option which doesn't use ptrace(2).
+ *         (integer N) . waitpid(1) will return exit code of the N-th PID as
+ *                       specified on the command line, starting from 1.
+ *         min, max .... waitpid(1) will return the least/largest code respectively.
+ *         print ....... waitpid(1) will print pairs "PID: EXIT_CODE" in order of
+ *                       PIDs specified on the command line, and return 0.
+ */
+
+#if    defined(_WIN32)
+#elif  defined(__APPLE__)
+#elif  defined(__sun) && defined(__SVR4)
+# define  __unix__  1
+#elif  defined(__linux__)
+#elif  defined(__unix__)
+#else
+# warning "Unsupported platform"
+#endif
+
+
+extern "C" {
+#if    defined(__linux__)
+# include <sys/ptrace.h>
+# include <sys/user.h>
+#endif
+
+#if    defined(_WIN32)
+# include <windows.h>
+# include <synchapi.h>
+#elif  defined(__unix__)
+# define  _POSIX_C_SOURCE  200809L
+# include <unistd.h>
+# include <signal.h>
+# include <sys/wait.h>
+#endif
+}
+
+
+#include  <cerrno>
+#include  <cstring>
+#include  <cstdio>
+#include  <cstdlib>
+
+#include  <iostream>
+#include  <vector>
+#include  <string>
+#include  <chrono>
+#include  <algorithm>
+#include  <functional>
+#include  <stdexcept>
+
+
+#if    defined(_WIN32)
+# include <getopt.h>
+# include "mingw.thread.h"
+# include "mingw.mutex.h"
+#else
+# include <thread>
+# include <mutex>
+#endif
+
+
+using std::vector;
+using std::string;
+using std::thread;
+using std::function;
+
+
+using st = vector<int>::size_type;
+#define TO_SIZE(e)  static_cast<st>(e)
+#define STRERROR  strerror(errno)
+// all this so i don't have to build a new mingw which supports __VA_OPT__
+template<typename ...Ts>
+void __COMPLAIN(const char *file, const char *func, int line, const char *format, Ts... args) {
+  fprintf(stderr, "%s[%s()#%d]: ", file, func, line);
+  fprintf(stderr, format, args...);
+  fprintf(stderr, "\n");
+  fflush(stderr);
+}
+#define COMPLAIN(...)  __COMPLAIN(__FILE__, __func__, __LINE__, __VA_ARGS__)
+#define DIE(status, ...)  do{COMPLAIN(__VA_ARGS__);exit(status);}while(0)
+
+
+#define  MSGPTRACEATTACHFAIL  "FATAL: ptrace(PTRACE_ATTACH, %d) failed: %s"
+#define  MSGWAITPIDUTFAIL     "FATAL: waitpid(%d, NULL, WUNTRACED) failed: %s"
+#define  MSGPTRACESYSCALLFAIL "FATAL: ptrace(PTRACE_SYSCALL 1, %d, 0, 0) failed: %s"
+#define  MSGWAITPID0FAIL      "FATAL: waitpid(%d, 0, 0) failed: %s"
+#define  MSGGETREGSFAIL       "FATAL: ptrace(PTRACE_GETREGS, %d, 0, &regs) failed: %s"
+#define  MSGINVALIDDELAY      "FATAL: Could not interpret argument as a valid delay in seconds: -D%s"
+#define  MSGINVALIDCODE       "FATAL: Could not interpret argument as a valid code operation: -C%s"
+#define  MSGPIDIDXTOOLARGE    "FATAL: PID index larger than number of PIDs: -C%d"
+#define  MSGGETOPTNOARG       "FATAL: Option argument missing: -%c"
+#define  MSGGETOPTUNKOPT      "FATAL: Unknown option: -%c"
+#define  MSGGETOPTUNK         "FATAL: Unknown getopt(3) failure"
+#define  MSGNOPIDS            "FATAL: No PIDs specified"
+#define  MSGINVALIDPID        "FATAL: Could not interpret argument as a valid PID: %s"
+#define  MSGWIN32MOD4WARN     "WARNING: PID is not a multiple of 4 and is likely incorrect: %d"
+
+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wshadow"
+using pid_t =
+#pragma clang diagnostic pop
+#if    defined(_WIN32)
+  int
+#elif  defined(__unix__)
+  pid_t
+#endif
+;
+
+static std::mutex iomtx;
+#define IOCRITICAL(...)  do { \
+  iomtx.lock();                \
+  __VA_ARGS__ ;                \
+  iomtx.unlock();              \
+} while(0)
+
+void dsleep(double secs) {
+  auto delay = std::chrono::microseconds(static_cast<long>(secs*1'000'000));
+  std::this_thread::sleep_for(delay);
+}
+
+
+int waitpidnorc(pid_t pid, double delay) {
+#if    defined(_WIN32)
+  DWORD rc = 0;
+  HANDLE ph = OpenProcess(SYNCHRONIZE | PROCESS_QUERY_INFORMATION,
+                          FALSE,
+                          static_cast<DWORD>(pid));
+  DWORD ws = WaitForSingleObject(h, INFINITE);
+
+  if(GetExitCodeProcess(ph, &rc) == FALSE)
+    return -1;
+
+  return rc;
+#elif  defined(__unix__)
+retry:
+  errno = 0;
+  int result = kill(pid, 0);
+
+  if(!result || (result && errno != ESRCH)) {
+    dsleep(delay);
+    goto retry;
+  }
+
+  return 0;
+#endif
+}
+
+int waitpidrc(pid_t pid, double delay) {
+#if    defined(_WIN32)
+  return waitpidnorc(pid, delay);
+#elif  defined(__linux__) // TODO: 32-bit Linux
+  errno = 0;
+
+  int status = 0;
+  int signal = 0;
+
+#define CHECK_FOR_SIGNAL_DELIVERY_STOP(stat, sig)  do { \
+  if(WIFSTOPPED(stat) == true && WSTOPSIG(stat)) { \
+    switch(WSTOPSIG(stat)) { \
+    case SIGTRAP: \
+      /* possibly a syscall-stop, ignore for now */ \
+      break; \
+    case SIGSTOP: \
+    case SIGTSTP: \
+    case SIGTTIN: \
+    case SIGTTOU: \
+      /* received a stopping signal, possibly a group-stop, ignore for now */ \
+      break; \
+    default: \
+      sig = WSTOPSIG(stat); \
+    } \
+  } \
+} while(0)
+
+  // XXX: we are handling simple signal-delivery-stops now, but
+  // if the tracee receives a terminating signal, we fail with ESRCH at
+  // PTRACE_SYSCALL.  In this situation, we should set retcode to -1.
+  // We could also "guess" the retcode by 128+signal, but that's dependent on
+  // the shell.
+
+  if(ptrace(PTRACE_ATTACH, pid, NULL, NULL) == -1)
+    DIE(1, MSGPTRACEATTACHFAIL, pid, STRERROR);
+
+  errno = 0;
+  if(waitpid(pid, &status, WUNTRACED) != pid)
+    DIE(1, MSGWAITPIDUTFAIL, pid, STRERROR);
+
+  while(true) {
+#define DO_PTRACE_SYSCALL() \
+    errno = 0; \
+    if(ptrace(PTRACE_SYSCALL, pid, 0, signal) == -1) { \
+      if(errno == ESRCH) \
+        return -1; \
+      DIE(1, MSGPTRACESYSCALLFAIL, pid, STRERROR); \
+    } \
+    if(waitpid(pid, &status, 0) != pid) \
+      DIE(1, MSGWAITPID0FAIL, pid, STRERROR); \
+    CHECK_FOR_SIGNAL_DELIVERY_STOP(status, signal); \
+
+    DO_PTRACE_SYSCALL(); // before syscall enters
+
+    struct user_regs_struct regs;
+    if(ptrace(PTRACE_GETREGS, pid, 0, &regs) == -1)
+      DIE(1, MSGGETREGSFAIL, pid, STRERROR);
+
+#if       defined(__linux__) && defined(__x86_64__)
+    switch(regs.orig_rax) {
+    case 0x3C: // sys_exit
+      [[fallthrough]];
+    case 0xE7: // sys_exit_group
+      ptrace(PTRACE_DETACH, pid, 0, 0);
+      return static_cast<int>(regs.rdi);
+    }
+#else
+# error "Unknown platform, need x64 Linux"
+#endif
+
+    DO_PTRACE_SYSCALL(); // after syscall completes
+  }
+#else
+  return 0;
+# error "TODO: something like linux ptrace but OtherUnix(tm)-specific"
+#endif
+}
+
+int waiter(pid_t pid, double delay, bool checkrc, function<void(int)> callback) {
+  int rc = (checkrc ? waitpidrc : waitpidnorc)(pid, delay);
+  if(checkrc) callback(rc);
+  return rc;
+}
+
+int process_codes(vector<int>& codes, vector<pid_t>& pids, int op) {
+  switch(op) {
+  case 0:
+    return 0;
+  case -1:
+    return *std::min_element(codes.begin(), codes.end());
+  case -2:
+    return *std::max_element(codes.begin(), codes.end());
+  case -3:
+    for(st i = 0; i < codes.size(); i++)
+      std::cout << pids[i] << ": " << codes[i] << std::endl;
+    return 0;
+  default:
+    if(op < -3 || TO_SIZE(op) > codes.size())
+      return -1;
+
+    return codes[TO_SIZE(op)-1];
+  }
+}
+
+
+int main(int argc, char **argv) {
+  vector<pid_t> pids;
+  vector<thread> threads;
+  vector<int> codes;
+  double delay = 0.5;
+  int op = 0; // TODO: this is the "ignore" magic number
+  bool checkrc = false;
+
+  int opt;
+  while((opt = getopt(argc, argv, ":D:C:h")) !=
+#if       defined(_WIN32)
+      EOF
+#else
+      -1
+#endif // defined(_WIN32)
+) {switch(opt) {
+    case 'D': {
+      errno = 0;
+      double d = strtod(optarg, nullptr);
+
+      if(errno || d <= 0)
+        DIE(EXIT_FAILURE, MSGINVALIDDELAY, optarg);
+
+      delay = d;
+      break;
+    }
+    case 'C': {
+      std::string ops(optarg);
+
+      if(ops == "ignore") { op =  0; break; }
+      if(ops ==    "min") { op = -1; break; }
+      if(ops ==    "max") { op = -2; break; }
+      if(ops ==  "print") { op = -3; break; }
+
+      char *endptr;
+      errno = 0;
+      op = static_cast<int>(strtol(optarg, &endptr, 0));
+
+      if(errno || op < 0 || endptr == optarg)
+        DIE(EXIT_FAILURE, MSGINVALIDCODE, optarg);
+
+      break;
+    }
+    case 'h':
+      std::cerr << R"END(Usage: waitpid [OPTION]... [--] PID...
+Wait until all PIDs exit.
+
+  waitpid(1) accepts a list of process IDs and then checks them
+  for termination.  When all PIDs terminate, waitpid(1) exits.
+
+OPTIONS
+  -D DELAY  (default: 0.5)
+        Set delay in seconds between polling events for each PID.  When running
+        on 64-bit Linux with CODE set to anything other than `ignore', DELAY
+        means nothing because instead of polling, ptrace(2) syscall intercept is
+        used instead.
+  -C CODE   (default: ignore)
+        Choose what to do with exit code of each PID after all PIDs terminate.
+        0, ignore ... waitpid(1) will return 0.  On 64-bit Linux, this is
+                      the only CODE option which doesn't use ptrace(2).
+        (integer N) . waitpid(1) will return exit code of the N-th PID as
+                      specified on the command line, starting from 1.
+        min, max .... waitpid(1) will return the least/largest code respectively.
+        print ....... waitpid(1) will print pairs "PID: EXIT_CODE" in order of
+                      PIDs specified on the command line, and return 0.
+)END";
+#ifndef PACKAGE_STRING
+#define PACKAGE_STRING "waitpid"
+#endif // PACKAGE_STRING
+std::cerr << PACKAGE_STRING << std::endl;
+      exit(EXIT_FAILURE);
+    case ':':
+      DIE(EXIT_FAILURE, MSGGETOPTNOARG, optopt);
+    case '?':
+      DIE(EXIT_FAILURE, MSGGETOPTUNKOPT, optopt);
+    default:
+      DIE(EXIT_FAILURE, MSGGETOPTUNK);
+    }
+  }
+
+  if(optind >= argc)
+    DIE(EXIT_FAILURE, MSGNOPIDS);
+
+  checkrc = !!op;
+
+  const size_t pid_count = TO_SIZE(argc)-TO_SIZE(optind);
+  codes.resize(pid_count, -1);
+
+  if(op > 0 && TO_SIZE(op) > pid_count)
+    DIE(EXIT_FAILURE, MSGPIDIDXTOOLARGE, op);
+
+  for(st i = TO_SIZE(optind); i < TO_SIZE(argc); i++) {
+    errno = 0;
+    pid_t pid = static_cast<pid_t>(strtol(argv[i], nullptr, 0));
+
+    if(errno || pid <= 0)
+      DIE(EXIT_FAILURE, MSGINVALIDPID, argv[i]);
+
+#if       defined(_WIN32)
+    if(pid % 4)
+      COMPLAIN(MSGWIN32MOD4WARN, static_cast<int>(pid));
+#endif // defined(_WIN32)
+
+    pids.push_back(pid);
+
+    threads.emplace_back(waiter, pid, delay, checkrc, [&codes, i](int rc) {
+        IOCRITICAL({ codes[i-TO_SIZE(optind)] = rc; });
+    });
+  }
+
+  for(thread& t : threads)
+    t.join();
+
+  return process_codes(codes, pids, op);
+}

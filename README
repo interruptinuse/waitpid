@@ -1,0 +1,10 @@
+  waitpid(1): wait for an arbitrary PID
+=======================================
+
+  Usage: waitpid [OPTION]... PID...
+  Wait until all PIDs exit.  Optionally, retrieve exit codes.
+
+  For further information, see waitpid(1).
+
+  Icon file from Fugue Icons by Yusuke Kamiyamane:
+  http://p.yusukekamiyamane.com/
