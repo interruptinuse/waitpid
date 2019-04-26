@@ -124,10 +124,9 @@ using pid_t =
 ;
 
 static std::mutex iomtx;
-#define IOCRITICAL(...)  do { \
-  iomtx.lock();                \
-  __VA_ARGS__ ;                \
-  iomtx.unlock();              \
+#define IOCRITICAL(...)  do {               \
+  std::scoped_lock<std::mutex> lock(iomtx); \
+  __VA_ARGS__ ;                             \
 } while(0)
 
 void dsleep(double secs) {
