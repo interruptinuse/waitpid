@@ -228,8 +228,16 @@ int waitpidrc(pid_t pid, double delay) {
       ptrace(PTRACE_DETACH, pid, 0, 0);
       return static_cast<int>(regs.rdi);
     }
+#elif     defined(__linux__) && defined(__i386__)
+    switch(regs.orig_eax) {
+    case 0x01: // sys_exit
+      [[fallthrough]];
+    case 0xFC: // sys_exit_group
+      ptrace(PTRACE_DETACH, pid, 0, 0);
+      return static_cast<int>(regs.ebx);
+    }
 #else
-# error "Unknown platform, need x64 Linux"
+# error "Unknown platform, need Linux"
 #endif
 
     DO_PTRACE_SYSCALL(); // after syscall completes

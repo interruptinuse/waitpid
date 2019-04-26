@@ -1,4 +1,4 @@
-.TH waitpid 1 "waitpid" "2019-03-16" "@PACKAGE_STRING@"
+.TH waitpid 1 "waitpid" "2019-04-26" "@PACKAGE_STRING@"
 
 .SH NAME
 .IX Header "NAME"
@@ -21,8 +21,8 @@ exits.
 .TP
 -D \fIDELAY\fR  (default: \fB0.5\fR)
 Delay in seconds between each polling event for a single \fIPID\fR polling
-thread.　When running on 64-bit Linux with \fICODE\fR set to anything other
-than \(lq\fBignore\fR\(rq, this argument is ignored (see option \(lq-C\(rq and
+thread.　When running on Linux with \fICODE\fR set to anything other than
+\(lq\fBignore\fR\(rq, this argument is ignored (see option \(lq-C\(rq and
 \fIIMPLEMENTATION DETAILS\fR).
 
 .TP
@@ -77,8 +77,7 @@ therefore, when exit status is requested,
 .IR waitpid (1)
 uses
 .IR ptrace (2)
-to determine process exit code (this is only implemented on 64-bit Linux).
-The
+to determine process exit code (this is only implemented on Linux). The
 .IR ptrace (2)
 approach is better than kill-polling in that it works as a blocking call, but
 it has a drawback in that it requires exclusivity and cannot be used with other
@@ -116,7 +115,12 @@ Wait for the three processes to finish, then return the exit code of PID 40.
 .nr step 1 1
 .IP \n[step] 4
 .IR ptrace (2)
-syscall intercept is only implemented for 64-bit Linux.
+syscall intercept is only implemented for Linux.
+.IP \n+[step]
+If tracing retcodes on 64-bit Linux with CONFIG_IA32_EMULATION, waitpid(1) must
+be compiled for the same architecture as the traced application (i.e. both
+32-bit or both 64-bit).  It's hard (and impossible, if talking about
+non-cooperative applications) to reliably determine width of a ptraced syscall.
 .IP \n+[step]
 Since
 .IR ptrace (2)
