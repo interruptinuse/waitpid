@@ -142,7 +142,7 @@ int waitpidnorc(pid_t pid, double delay) {
   HANDLE ph = OpenProcess(SYNCHRONIZE | PROCESS_QUERY_INFORMATION,
                           FALSE,
                           static_cast<DWORD>(pid));
-  DWORD ws = WaitForSingleObject(h, INFINITE);
+  DWORD ws = WaitForSingleObject(ph, INFINITE);
 
   if(GetExitCodeProcess(ph, &rc) == FALSE)
     return -1;
