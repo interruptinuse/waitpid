@@ -161,7 +161,7 @@ retry:
 int waitpidrc(pid_t pid, double delay) {
 #if    defined(_WIN32)
   return waitpidnorc(pid, delay);
-#elif  defined(__linux__) // TODO: 32-bit Linux
+#elif  defined(__linux__)
   errno = 0;
 
   int status = 0;
@@ -276,7 +276,7 @@ int main(int argc, char **argv) {
   vector<thread> threads;
   vector<int> codes;
   double delay = 0.5;
-  int op = 0; // TODO: this is the "ignore" magic number
+  int op = 0;
   bool checkrc = false;
 
   int opt;
