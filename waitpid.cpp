@@ -23,11 +23,7 @@
  */
 
 #if    defined(_WIN32)
-#elif  defined(__APPLE__)
-#elif  defined(__sun) && defined(__SVR4)
-# define  __unix__  1
 #elif  defined(__linux__)
-#elif  defined(__unix__)
 #else
 # warning "Unsupported platform"
 #endif
