@@ -2,15 +2,16 @@
  * Usage: waitpid [OPTION]... [--] PID...
  * Wait until all PIDs exit.
  *
- *   waitpid(1) accepts a list of process IDs and then checks them
- *   for termination.  When all PIDs terminate, waitpid(1) exits.
+ * waitpid(1) accepts a list of process IDs and then checks them for
+ * termination.  When all PIDs terminate, waitpid(1) exits.  Optionally,
+ * waitpid(1) will also display exit codes.
  *
  * OPTIONS
  *   -D DELAY  (default: 0.5)
- *         Set delay in seconds between polling events for each PID.  When running
- *         on 64-bit Linux with CODE set to anything other than `ignore', DELAY
- *         means nothing because instead of polling, ptrace(2) syscall intercept is
- *         used instead.
+ *         Set delay in seconds between polling events for each PID.  When
+ *         running on 64-bit Linux with CODE set to anything other than
+ *         `ignore', DELAY means nothing because instead of polling, ptrace(2)
+ *         syscall intercept is used instead.
  *   -C CODE   (default: ignore)
  *         Choose what to do with exit code of each PID after all PIDs terminate.
  *         0, ignore ... waitpid(1) will return 0.  On 64-bit Linux, this is
@@ -317,8 +318,9 @@ int main(int argc, char **argv) {
       std::cerr << R"END(Usage: waitpid [OPTION]... [--] PID...
 Wait until all PIDs exit.
 
-  waitpid(1) accepts a list of process IDs and then checks them
-  for termination.  When all PIDs terminate, waitpid(1) exits.
+waitpid(1) accepts a list of process IDs and then checks them for termination.
+When all PIDs terminate, waitpid(1) exits.  Optionally, waitpid(1) will also
+display exit codes.
 
 OPTIONS
   -D DELAY  (default: 0.5)
