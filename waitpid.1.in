@@ -1,4 +1,4 @@
-.TH waitpid 1 "waitpid" "2019-04-26" "@PACKAGE_STRING@"
+.TH waitpid 1 "waitpid" "2019-04-27" "@PACKAGE_STRING@"
 
 .SH NAME
 .IX Header "NAME"
