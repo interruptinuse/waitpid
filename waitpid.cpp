@@ -9,13 +9,12 @@
  * OPTIONS
  *   -D DELAY  (default: 0.5)
  *         Set delay in seconds between polling events for each PID.
- *         When running on Linux with CODE set to anything other than `ignore`,
+ *         When not on Windows, and CODE is set to anything other than `ignore`,
  *         DELAY means nothing because instead of kill(2) polling, ptrace(2)
  *         syscall intercept is done instead.
  *   -C CODE   (default: ignore)
  *         Choose what to do with exit codes after all PIDs terminate.
- *         0, ignore ... waitpid(1) will return 0.  On 64-bit Linux, this is
- *                       the only CODE option which doesn't use ptrace(2).
+ *         0, ignore ... waitpid(1) will return 0.  Never uses ptrace(2).
  *         (integer N) . waitpid(1) will return exit code of the N-th PID as
  *                       specified on the command line, starting from 1.
  *         min, max .... waitpid(1) will return the least/largest code.
@@ -25,6 +24,7 @@
 
 #if    defined(_WIN32)
 #elif  defined(__linux__)
+#elif  defined(__FreeBSD__)
 #else
 # warning "Unsupported platform"
 #endif
@@ -32,8 +32,15 @@
 
 extern "C" {
 #if    defined(__linux__)
-# include <sys/ptrace.h>
 # include <sys/user.h>
+# include <sys/ptrace.h>
+#endif
+
+#if    defined(__FreeBSD__)
+# include <sys/cdefs.h>
+# include <machine/reg.h>
+# include <sys/types.h>
+# include <sys/ptrace.h>
 #endif
 
 #if    defined(_WIN32)
@@ -72,6 +79,7 @@ extern "C" {
 #endif
 
 
+
 using std::vector;
 using std::string;
 using std::thread;
@@ -97,15 +105,15 @@ void __COMPLAIN(const char *file, const char *func, int line,
 #define  MSGWFSOFAIL          \
   "FATAL: WaitForSingleObject failed"
 #define  MSGPTRACEATTACHFAIL  \
-  "FATAL: ptrace(PTRACE_ATTACH, %d) failed: %s"
+  "FATAL: ptrace attach for PID %d failed: %s"
 #define  MSGWAITPIDUTFAIL     \
   "FATAL: waitpid(%d, NULL, WUNTRACED) failed: %s"
 #define  MSGPTRACESYSCALLFAIL \
-  "FATAL: ptrace(PTRACE_SYSCALL 1, %d, 0, 0) failed: %s"
+  "FATAL: ptrace syscall for PID %d failed: %s"
 #define  MSGWAITPID0FAIL      \
   "FATAL: waitpid(%d, 0, 0) failed: %s"
 #define  MSGGETREGSFAIL       \
-  "FATAL: ptrace(PTRACE_GETREGS, %d, 0, &regs) failed: %s"
+  "FATAL: ptrace register inspection for PID %d failed: %s"
 #define  MSGINVALIDDELAY      \
   "FATAL: Could not interpret argument as a valid delay in seconds: -D%s"
 #define  MSGINVALIDCODE       \
@@ -236,15 +244,7 @@ int waitpidrc(pid_t pid, double delay) {
     if(ptrace(PTRACE_GETREGS, pid, 0, &regs) == -1)
       DIE(1, MSGGETREGSFAIL, pid, STRERROR);
 
-#if       defined(__linux__) && defined(__x86_64__)
-    switch(regs.orig_rax) {
-    case 0x3C: // sys_exit
-      [[fallthrough]];
-    case 0xE7: // sys_exit_group
-      ptrace(PTRACE_DETACH, pid, 0, 0);
-      return static_cast<int>(regs.rdi);
-    }
-#elif     defined(__linux__) && defined(__i386__)
+#if       defined(__i386__)
     switch(regs.orig_eax) {
     case 0x01: // sys_exit
       [[fallthrough]];
@@ -252,15 +252,64 @@ int waitpidrc(pid_t pid, double delay) {
       ptrace(PTRACE_DETACH, pid, 0, 0);
       return static_cast<int>(regs.ebx);
     }
+#elif     defined(__x86_64__)
+    switch(regs.orig_rax) {
+    case 0x3C: // sys_exit
+      [[fallthrough]];
+    case 0xE7: // sys_exit_group
+      ptrace(PTRACE_DETACH, pid, 0, 0);
+      return static_cast<int>(regs.rdi);
+    }
 #else
-# error "Unknown platform, need Linux"
+# error "Unsupported architecture"
 #endif
-
     DO_PTRACE_SYSCALL(); // after syscall completes
   }
+#elif     defined(__FreeBSD__)
+  struct reg registers;
+
+  errno = 0;
+
+  if(ptrace(PT_ATTACH, pid, (caddr_t)0, SIGSTOP))
+    DIE(EXIT_FAILURE, MSGPTRACEATTACHFAIL, pid, STRERROR);
+
+  int status = 0;
+  if(waitpid(pid, &status, WUNTRACED) != pid)
+    DIE(EXIT_FAILURE, MSGWAITPIDUTFAIL, pid, STRERROR);
+
+  while(ptrace(PT_TO_SCE, pid, (caddr_t)1, 0) == 0) {
+    if (wait(0) == -1)
+      break;
+
+    errno = 0;
+
+    if(ptrace(PT_GETREGS, pid, (caddr_t)&registers, 0))
+      DIE(EXIT_FAILURE, MSGGETREGSFAIL, pid, STRERROR);
+
+#if       defined(__i386__)
+# define SCNUM  r_eax
+# define STPTR  r_esp
+#elif     defined(__x86_64__)
+# define SCNUM  r_rax
+# define STPTR  r_rsp
+#else
+# error "Unsupported architecture"
+#endif
+
+    switch(registers.SCNUM) {
+    case 1: // exit
+      fprintf(stderr, "pt_read_d start\n");
+      int rc = ptrace(PT_READ_D, pid, (caddr_t)registers.STPTR+sizeof(int), 0);
+      fprintf(stderr, "pt_detach start\n");
+      ptrace(PT_DETACH, pid, (caddr_t)1, 0);
+      return rc;
+    }
+  }
+
+  return -1;
 #else
   return 0;
-# error "TODO: something like linux ptrace but OtherUnix(tm)-specific"
+# warn "Exit code inspection not supported on this platform"
 #endif
 }
 
@@ -346,13 +395,12 @@ waitpid(1) will also display exit codes.
 OPTIONS
   -D DELAY  (default: 0.5)
         Set delay in seconds between polling events for each PID.
-        When running on Linux with CODE set to anything other than `ignore`,
+        When not on Windows, and CODE is set to anything other than `ignore`,
         DELAY means nothing because instead of kill(2) polling, ptrace(2)
         syscall intercept is done instead.
   -C CODE   (default: ignore)
         Choose what to do with exit codes after all PIDs terminate.
-        0, ignore ... waitpid(1) will return 0.  On 64-bit Linux, this is
-                      the only CODE option which doesn't use ptrace(2).
+        0, ignore ... waitpid(1) will return 0.  Never uses ptrace(2).
         (integer N) . waitpid(1) will return exit code of the N-th PID as
                       specified on the command line, starting from 1.
         min, max .... waitpid(1) will return the least/largest code.

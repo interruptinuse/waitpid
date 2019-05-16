@@ -18,8 +18,13 @@ CXXFLAG_ADD([-Wno-format-security])
 CXXFLAG_ADD([-std=c++2a])
 CXXFLAG_ADD([-std=c++17])
 
-CXXFLAG_ADD([-flto])
-LDFLAGS="-flto $LDFLAGS"
+
+AS_CASE([$host],
+  [*freebsd*], [],
+  [*], [
+    CXXFLAG_ADD([-flto])
+    LDFLAGS="-flto $LDFLAGS"])
+
 
 AC_MSG_CHECKING([whether we're building for a Win32 host])
 AS_CASE([$host],

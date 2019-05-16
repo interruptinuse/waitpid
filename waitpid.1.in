@@ -77,7 +77,7 @@ therefore, when exit status is requested,
 .IR waitpid (1)
 uses
 .IR ptrace (2)
-to determine process exit code (this is only implemented on Linux). The
+to determine process exit code. The
 .IR ptrace (2)
 approach is better than kill-polling in that it works as a blocking call, but
 it has a drawback in that it requires exclusivity and cannot be used with other
@@ -134,6 +134,8 @@ or
 .IP \n+[step]
 \(lq-C print\(rq prints all results on exit together, when it could print each
 N-th result as soon as it becomes available.  Not sure if bug.
+.IP \n+[step]
+FreeBSD exit code ptrace(2) intercept is not tested well.
 
 .SH SEE ALSO
 .IX Header "SEE ALSO"
