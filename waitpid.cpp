@@ -94,6 +94,8 @@ void __COMPLAIN(const char *file, const char *func, int line,
 #define DIE(status, ...)  do{COMPLAIN(__VA_ARGS__);exit(status);}while(0)
 
 
+#define  MSGWFSOFAIL          \
+  "FATAL: WaitForSingleObject failed"
 #define  MSGPTRACEATTACHFAIL  \
   "FATAL: ptrace(PTRACE_ATTACH, %d) failed: %s"
 #define  MSGWAITPIDUTFAIL     \
@@ -154,6 +156,9 @@ int waitpidnorc(pid_t pid, double delay) {
                           FALSE,
                           static_cast<DWORD>(pid));
   DWORD ws = WaitForSingleObject(ph, INFINITE);
+
+  if(ws == WAIT_FAILED)
+    DIE(EXIT_FAILURE, MSGWFSOFAIL);
 
   if(GetExitCodeProcess(ph, &rc) == FALSE)
     return -1;
