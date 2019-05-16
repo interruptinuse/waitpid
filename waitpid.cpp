@@ -8,19 +8,19 @@
  *
  * OPTIONS
  *   -D DELAY  (default: 0.5)
- *         Set delay in seconds between polling events for each PID.  When
- *         running on 64-bit Linux with CODE set to anything other than
- *         `ignore', DELAY means nothing because instead of polling, ptrace(2)
- *         syscall intercept is used instead.
+ *         Set delay in seconds between polling events for each PID.
+ *         When running on Linux with CODE set to anything other than `ignore`,
+ *         DELAY means nothing because instead of kill(2) polling, ptrace(2)
+ *         syscall intercept is done instead.
  *   -C CODE   (default: ignore)
- *         Choose what to do with exit code of each PID after all PIDs terminate.
+ *         Choose what to do with exit codes after all PIDs terminate.
  *         0, ignore ... waitpid(1) will return 0.  On 64-bit Linux, this is
  *                       the only CODE option which doesn't use ptrace(2).
  *         (integer N) . waitpid(1) will return exit code of the N-th PID as
  *                       specified on the command line, starting from 1.
- *         min, max .... waitpid(1) will return the least/largest code respectively.
- *         print ....... waitpid(1) will print pairs "PID: EXIT_CODE" in order of
- *                       PIDs specified on the command line, and return 0.
+ *         min, max .... waitpid(1) will return the least/largest code.
+ *         print ....... waitpid(1) will print pairs "PID: EXIT_CODE" in order
+ *                       of PIDs specified on the command line, and return 0.
  */
 
 #if    defined(_WIN32)
@@ -318,25 +318,25 @@ int main(int argc, char **argv) {
       std::cerr << R"END(Usage: waitpid [OPTION]... [--] PID...
 Wait until all PIDs exit.
 
-waitpid(1) accepts a list of process IDs and then checks them for termination.
-When all PIDs terminate, waitpid(1) exits.  Optionally, waitpid(1) will also
-display exit codes.
+waitpid(1) accepts a list of process IDs and then checks them for
+termination.  When all PIDs terminate, waitpid(1) exits.  Optionally,
+waitpid(1) will also display exit codes.
 
 OPTIONS
   -D DELAY  (default: 0.5)
-        Set delay in seconds between polling events for each PID.  When running
-        on 64-bit Linux with CODE set to anything other than `ignore', DELAY
-        means nothing because instead of polling, ptrace(2) syscall intercept is
-        used instead.
+        Set delay in seconds between polling events for each PID.
+        When running on Linux with CODE set to anything other than `ignore`,
+        DELAY means nothing because instead of kill(2) polling, ptrace(2)
+        syscall intercept is done instead.
   -C CODE   (default: ignore)
-        Choose what to do with exit code of each PID after all PIDs terminate.
+        Choose what to do with exit codes after all PIDs terminate.
         0, ignore ... waitpid(1) will return 0.  On 64-bit Linux, this is
                       the only CODE option which doesn't use ptrace(2).
         (integer N) . waitpid(1) will return exit code of the N-th PID as
                       specified on the command line, starting from 1.
-        min, max .... waitpid(1) will return the least/largest code respectively.
-        print ....... waitpid(1) will print pairs "PID: EXIT_CODE" in order of
-                      PIDs specified on the command line, and return 0.
+        min, max .... waitpid(1) will return the least/largest code.
+        print ....... waitpid(1) will print pairs "PID: EXIT_CODE" in order
+                      of PIDs specified on the command line, and return 0.
 )END";
 #ifndef PACKAGE_STRING
 #define PACKAGE_STRING "waitpid"
