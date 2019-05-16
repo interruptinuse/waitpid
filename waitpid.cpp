@@ -83,7 +83,8 @@ using st = vector<int>::size_type;
 #define STRERROR  strerror(errno)
 // all this so i don't have to build a new mingw which supports __VA_OPT__
 template<typename ...Ts>
-void __COMPLAIN(const char *file, const char *func, int line, const char *format, Ts... args) {
+void __COMPLAIN(const char *file, const char *func, int line,
+                const char *format, Ts... args) {
   fprintf(stderr, "%s[%s()#%d]: ", file, func, line);
   fprintf(stderr, format, args...);
   fprintf(stderr, "\n");
@@ -93,20 +94,34 @@ void __COMPLAIN(const char *file, const char *func, int line, const char *format
 #define DIE(status, ...)  do{COMPLAIN(__VA_ARGS__);exit(status);}while(0)
 
 
-#define  MSGPTRACEATTACHFAIL  "FATAL: ptrace(PTRACE_ATTACH, %d) failed: %s"
-#define  MSGWAITPIDUTFAIL     "FATAL: waitpid(%d, NULL, WUNTRACED) failed: %s"
-#define  MSGPTRACESYSCALLFAIL "FATAL: ptrace(PTRACE_SYSCALL 1, %d, 0, 0) failed: %s"
-#define  MSGWAITPID0FAIL      "FATAL: waitpid(%d, 0, 0) failed: %s"
-#define  MSGGETREGSFAIL       "FATAL: ptrace(PTRACE_GETREGS, %d, 0, &regs) failed: %s"
-#define  MSGINVALIDDELAY      "FATAL: Could not interpret argument as a valid delay in seconds: -D%s"
-#define  MSGINVALIDCODE       "FATAL: Could not interpret argument as a valid code operation: -C%s"
-#define  MSGPIDIDXTOOLARGE    "FATAL: PID index larger than number of PIDs: -C%d"
-#define  MSGGETOPTNOARG       "FATAL: Option argument missing: -%c"
-#define  MSGGETOPTUNKOPT      "FATAL: Unknown option: -%c"
-#define  MSGGETOPTUNK         "FATAL: Unknown getopt(3) failure"
-#define  MSGNOPIDS            "FATAL: No PIDs specified"
-#define  MSGINVALIDPID        "FATAL: Could not interpret argument as a valid PID: %s"
-#define  MSGWIN32MOD4WARN     "WARNING: PID is not a multiple of 4 and is likely incorrect: %d"
+#define  MSGPTRACEATTACHFAIL  \
+  "FATAL: ptrace(PTRACE_ATTACH, %d) failed: %s"
+#define  MSGWAITPIDUTFAIL     \
+  "FATAL: waitpid(%d, NULL, WUNTRACED) failed: %s"
+#define  MSGPTRACESYSCALLFAIL \
+  "FATAL: ptrace(PTRACE_SYSCALL 1, %d, 0, 0) failed: %s"
+#define  MSGWAITPID0FAIL      \
+  "FATAL: waitpid(%d, 0, 0) failed: %s"
+#define  MSGGETREGSFAIL       \
+  "FATAL: ptrace(PTRACE_GETREGS, %d, 0, &regs) failed: %s"
+#define  MSGINVALIDDELAY      \
+  "FATAL: Could not interpret argument as a valid delay in seconds: -D%s"
+#define  MSGINVALIDCODE       \
+  "FATAL: Could not interpret argument as a valid code operation: -C%s"
+#define  MSGPIDIDXTOOLARGE    \
+  "FATAL: PID index larger than number of PIDs: -C%d"
+#define  MSGGETOPTNOARG       \
+  "FATAL: Option argument missing: -%c"
+#define  MSGGETOPTUNKOPT      \
+  "FATAL: Unknown option: -%c"
+#define  MSGGETOPTUNK         \
+  "FATAL: Unknown getopt(3) failure"
+#define  MSGNOPIDS            \
+  "FATAL: No PIDs specified"
+#define  MSGINVALIDPID        \
+  "FATAL: Could not interpret argument as a valid PID: %s"
+#define  MSGWIN32MOD4WARN     \
+  "WARNING: PID is not a multiple of 4 and is likely incorrect: %d"
 
 
 #pragma clang diagnostic push
@@ -244,7 +259,8 @@ int waitpidrc(pid_t pid, double delay) {
 #endif
 }
 
-int waiter(pid_t pid, double delay, bool checkrc, function<void(int)> callback) {
+int waiter(pid_t pid, double delay, bool checkrc,
+           function<void(int)> callback) {
   int rc = (checkrc ? waitpidrc : waitpidnorc)(pid, delay);
   if(checkrc) callback(rc);
   return rc;
