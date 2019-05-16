@@ -199,7 +199,7 @@ int waitpidrc(pid_t pid, double delay) {
     DIE(1, MSGWAITPIDUTFAIL, pid, STRERROR);
 
   while(true) {
-#define DO_PTRACE_SYSCALL() \
+#define DO_PTRACE_SYSCALL() do {\
     errno = 0; \
     if(ptrace(PTRACE_SYSCALL, pid, 0, signal) == -1) { \
       if(errno == ESRCH) \
@@ -208,7 +208,7 @@ int waitpidrc(pid_t pid, double delay) {
     } \
     if(waitpid(pid, &status, 0) != pid) \
       DIE(1, MSGWAITPID0FAIL, pid, STRERROR); \
-    CHECK_FOR_SIGNAL_DELIVERY_STOP(status, signal); \
+    CHECK_FOR_SIGNAL_DELIVERY_STOP(status, signal); } while(0)
 
     DO_PTRACE_SYSCALL(); // before syscall enters
 
