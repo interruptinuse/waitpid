@@ -298,9 +298,7 @@ int waitpidrc(pid_t pid, double delay) {
 
     switch(registers.SCNUM) {
     case 1: // exit
-      fprintf(stderr, "pt_read_d start\n");
       int rc = ptrace(PT_READ_D, pid, (caddr_t)registers.STPTR+sizeof(int), 0);
-      fprintf(stderr, "pt_detach start\n");
       ptrace(PT_DETACH, pid, (caddr_t)1, 0);
       return rc;
     }
