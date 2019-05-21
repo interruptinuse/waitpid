@@ -79,7 +79,6 @@ extern "C" {
 #endif
 
 
-
 using std::vector;
 using std::string;
 using std::thread;
@@ -298,8 +297,7 @@ int waitpidrc(pid_t pid, double delay) {
 # error "Unsupported architecture"
 #endif
 
-    switch(registers.SCNUM) {
-    case 1: // exit
+    if(registers.SCNUM == 1) { // exit syscall
       int rc = ptrace(PT_READ_D, pid, (caddr_t)registers.STPTR+sizeof(int), 0);
       ptrace(PT_DETACH, pid, (caddr_t)1, 0);
       return rc;
