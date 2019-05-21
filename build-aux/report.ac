@@ -1,0 +1,36 @@
+# grey 256 color
+CG=240
+# print colored "key" (variable name)
+_ck() {
+  tput setaf $CG 2>/dev/null || printf ''
+  tput bold      2>/dev/null || printf ''
+  printf "%${PAD-0}s" "$*"
+  tput sgr0      2>/dev/null || printf ''
+}
+# print colored "value" (variable value) or "(empty)
+_cv() {
+  PAD="${PAD-0}"
+  if test -n "$*" ; then
+    printf "%${PAD}s" "$*"
+  else
+    tput setaf $CG 2>/dev/null || printf ''
+    printf "%s" "(empty)"
+    tput sgr0 2>/dev/null      || printf ''
+    test $PAD -gt 0 && NEWPAD="$(( PAD-7 ))" || test $PAD = 0 && NEWPAD=0 || NEWPAD=$(( PAD+7 ))
+    printf "%${NEWPAD}s" ""
+  fi
+}
+echo
+echo "***"
+echo "$PACKAGE_STRING has been configured:"
+echo
+echo "  $(_ck host:)     $(PAD=-30 _cv "$host"        )  $(_ck build:) $(_cv "$build")"
+echo "  $(_ck prefix:)   $(_cv "$prefix")"
+echo "  $(_ck CPP:)      $(PAD=-30 _cv "$CPP"         )  $(_ck LD:)    $(_cv "$LD")"
+echo "  $(_ck CC:)       $(PAD=-30 _cv "$CC"          )  $(_ck CXX:)   $(_cv "$CXX")"
+echo "  $(_ck WINDRES:)  $(_cv "$WINDRES")"
+echo "  $(_ck CFLAGS:)   $(PAD=-30 _cv "$CFLAGS"      )  $(_ck PTHREAD_CFLAGS:) $(_cv "$PTHREAD_CFLAGS")"
+echo "  $(_ck CXXFLAGS:) $(_cv "$CXXFLAGS")"
+echo "  $(_ck LDFLAGS:)  $(PAD=-30 _cv "$LDFLAGS"     )  $(_ck LIBS:)  $(_cv "$LIBS")"
+echo "  $(_ck with_pic:) $(PAD=-30 _cv "$with_pic" )"
+echo
