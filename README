@@ -8,3 +8,6 @@
 
   Icon file from Fugue Icons by Yusuke Kamiyamane:
   http://p.yusukekamiyamane.com/
+
+  Supported on Win32, x86/amd64 Linux (32-bit emulation not supported),
+  x86/amd64 FreeBSD.
