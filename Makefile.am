@@ -1,4 +1,4 @@
-EXTRA_DIST = README RELEASE mingw.thread.h mingw.mutex.h hourglass.ico waitpid.1.in .gitignore
+EXTRA_DIST = build-aux README RELEASE mingw.thread.h mingw.mutex.h hourglass.ico waitpid.1.in .gitignore
 
 bin_PROGRAMS    = waitpid
 dist_man_MANS   = waitpid.1
