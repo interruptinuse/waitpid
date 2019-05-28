@@ -194,52 +194,65 @@ int waitpidrc(pid_t pid, double delay) {
   int status = 0;
   int signal = 0;
 
-#define CHECK_FOR_SIGNAL_DELIVERY_STOP(stat, sig)  do { \
-  if(WIFSTOPPED(stat) == true && WSTOPSIG(stat)) { \
-    switch(WSTOPSIG(stat)) { \
-    case SIGTRAP: \
-      /* possibly a syscall-stop, ignore for now */ \
-      break; \
-    case SIGSTOP: \
-    case SIGTSTP: \
-    case SIGTTIN: \
-    case SIGTTOU: \
-      /* received a stopping signal, possibly a group-stop, ignore for now */ \
-      break; \
-    default: \
-      sig = WSTOPSIG(stat); \
-    } \
-  } \
-} while(0)
-
-  // XXX: we are handling simple signal-delivery-stops now, but
-  // if the tracee receives a terminating signal, we fail with ESRCH at
-  // PTRACE_SYSCALL.  In this situation, we should set retcode to -1.
-  // We could also "guess" the retcode by 128+signal, but that's dependent on
-  // the shell.
-
+  errno = 0;
   if(ptrace(PTRACE_ATTACH, pid, NULL, NULL) == -1)
     DIE(1, MSGPTRACEATTACHFAIL, pid, STRERROR);
 
   errno = 0;
-  if(waitpid(pid, &status, WUNTRACED) != pid)
-    DIE(1, MSGWAITPIDUTFAIL, pid, STRERROR);
+  if(waitpid(pid, &status, 0) != pid)
+    DIE(1, MSGWAITPID0FAIL, pid, STRERROR);
+
+  // Detect non-syscall signal traps easier
+  ptrace(PTRACE_SETOPTIONS, pid, 0, PTRACE_O_TRACESYSGOOD);
 
   while(true) {
-#define DO_PTRACE_SYSCALL() do {\
-    errno = 0; \
-    if(ptrace(PTRACE_SYSCALL, pid, 0, signal) == -1) { \
-      if(errno == ESRCH) \
-        return -1; \
-      DIE(1, MSGPTRACESYSCALLFAIL, pid, STRERROR); \
-    } \
-    if(waitpid(pid, &status, 0) != pid) \
-      DIE(1, MSGWAITPID0FAIL, pid, STRERROR); \
-    CHECK_FOR_SIGNAL_DELIVERY_STOP(status, signal); } while(0)
+    // syscall enter
+    errno = 0;
+    if(ptrace(PTRACE_SYSCALL, pid, 0, signal) == -1) {
+      if(errno == ESRCH) {
+        std::cerr << "esrch on sc entry" << std::endl;
+        return -1;
+      }
 
-    DO_PTRACE_SYSCALL(); // before syscall enters
+      DIE(1, MSGPTRACESYSCALLFAIL, pid, STRERROR);
+    }
+
+    if(!WIFSTOPPED(status))
+      kill(pid, SIGSTOP);
+
+    if(waitpid(pid, &status, 0) != pid)
+      DIE(1, MSGWAITPID0FAIL, pid, STRERROR);
+
+    signal = 0;
+
+    if(WIFSTOPPED(status) == true && WSTOPSIG(status)) {
+      switch(WSTOPSIG(status)) {
+      case (SIGTRAP | 0x80):
+        /* a syscall-stop, ignore */
+        break;
+      case SIGTRAP:
+        /* tracer event */
+        if((status >> 16) == PTRACE_EVENT_EXIT) {
+          unsigned long retcode = 0;
+          ptrace(PTRACE_GETEVENTMSG, pid, 0, &retcode);
+          ptrace(PTRACE_DETACH, pid, 0, 0);
+          return static_cast<int>(retcode);
+        }
+        break;
+      case SIGSTOP:
+      case SIGTSTP:
+      case SIGTTIN:
+      case SIGTTOU:
+        /* received a stopping signal, possibly a group-stop, ignore for now */
+        /* (if this is a group-stop, we reinject it) */
+        [[fallthrough]];
+      default:
+        signal = WSTOPSIG(status);
+      }
+    }
 
     struct user_regs_struct regs;
+    errno = 0;
     if(ptrace(PTRACE_GETREGS, pid, 0, &regs) == -1)
       DIE(1, MSGGETREGSFAIL, pid, STRERROR);
 
@@ -262,7 +275,38 @@ int waitpidrc(pid_t pid, double delay) {
 #else
 # error "Unsupported architecture"
 #endif
-    DO_PTRACE_SYSCALL(); // after syscall completes
+
+    // syscall exit
+    errno = 0;
+    if(ptrace(PTRACE_SYSCALL, pid, 0, signal) == -1) {
+      if(errno == ESRCH) {
+        std::cerr << "esrch on sc exit" << std::endl;
+        return -1;
+      }
+
+      DIE(1, MSGPTRACESYSCALLFAIL, pid, STRERROR);
+    }
+
+    if(waitpid(pid, &status, 0) != pid)
+      DIE(1, MSGWAITPID0FAIL, pid, STRERROR);
+
+    if(WIFSTOPPED(status) == true && WSTOPSIG(status)) {
+      switch(WSTOPSIG(status)) {
+      case (SIGTRAP | 0x80):
+        /* a syscall-stop, ignore */
+        break; \
+      case SIGSTOP:
+      case SIGTSTP:
+      case SIGTTIN:
+      case SIGTTOU:
+        /* received a stopping signal, possibly a group-stop, ignore for now */
+        /* (if this is a group-stop, we reinject it) */
+        [[fallthrough]];
+      default:
+        signal = WSTOPSIG(status);
+      }
+    }
+
   }
 #elif     defined(__FreeBSD__)
   struct reg registers;
