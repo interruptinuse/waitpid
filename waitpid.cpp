@@ -209,10 +209,8 @@ int waitpidrc(pid_t pid, double delay) {
     // syscall enter
     errno = 0;
     if(ptrace(PTRACE_SYSCALL, pid, 0, signal) == -1) {
-      if(errno == ESRCH) {
-        std::cerr << "esrch on sc entry" << std::endl;
+      if(errno == ESRCH)
         return -1;
-      }
 
       DIE(1, MSGPTRACESYSCALLFAIL, pid, STRERROR);
     }
@@ -279,10 +277,8 @@ int waitpidrc(pid_t pid, double delay) {
     // syscall exit
     errno = 0;
     if(ptrace(PTRACE_SYSCALL, pid, 0, signal) == -1) {
-      if(errno == ESRCH) {
-        std::cerr << "esrch on sc exit" << std::endl;
+      if(errno == ESRCH)
         return -1;
-      }
 
       DIE(1, MSGPTRACESYSCALLFAIL, pid, STRERROR);
     }
