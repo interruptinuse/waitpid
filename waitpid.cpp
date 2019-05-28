@@ -208,12 +208,8 @@ int waitpidrc(pid_t pid, double delay) {
   while(true) {
     // syscall enter
     errno = 0;
-    if(ptrace(PTRACE_SYSCALL, pid, 0, signal) == -1) {
-      if(errno == ESRCH)
-        return -1;
-
+    if(ptrace(PTRACE_SYSCALL, pid, 0, signal) == -1)
       DIE(1, MSGPTRACESYSCALLFAIL, pid, STRERROR);
-    }
 
     if(!WIFSTOPPED(status))
       kill(pid, SIGSTOP);
@@ -276,12 +272,8 @@ int waitpidrc(pid_t pid, double delay) {
 
     // syscall exit
     errno = 0;
-    if(ptrace(PTRACE_SYSCALL, pid, 0, signal) == -1) {
-      if(errno == ESRCH)
-        return -1;
-
+    if(ptrace(PTRACE_SYSCALL, pid, 0, signal) == -1)
       DIE(1, MSGPTRACESYSCALLFAIL, pid, STRERROR);
-    }
 
     if(waitpid(pid, &status, 0) != pid)
       DIE(1, MSGWAITPID0FAIL, pid, STRERROR);
