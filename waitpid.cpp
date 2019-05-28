@@ -237,8 +237,8 @@ int waitpidrc(pid_t pid, double delay) {
       case SIGTSTP:
       case SIGTTIN:
       case SIGTTOU:
-        /* received a stopping signal, possibly a group-stop, ignore for now */
-        /* (if this is a group-stop, we reinject it) */
+        /* received a stopping signal, possibly a group-stop */
+        /* (we reinject it regardless) */
         [[fallthrough]];
       default:
         signal = WSTOPSIG(status);
@@ -287,8 +287,8 @@ int waitpidrc(pid_t pid, double delay) {
       case SIGTSTP:
       case SIGTTIN:
       case SIGTTOU:
-        /* received a stopping signal, possibly a group-stop, ignore for now */
-        /* (if this is a group-stop, we reinject it) */
+        /* received a stopping signal, possibly a group-stop */
+        /* (we reinject it regardless) */
         [[fallthrough]];
       default:
         signal = WSTOPSIG(status);
