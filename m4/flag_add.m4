@@ -12,7 +12,7 @@ dnl   CFLAGS="$ADDED_CFLAGS $CFLAGS"
 # If the flag is supported, add it to ADDED_FLAGSVAR (like ADDED_CFLAGS).
 # Hard fail if REQUIREMENT is [mandatory].
 AC_DEFUN([FLAG_ADD], [
-  AC_MSG_CHECKING([whether $2 $3 understands $4])
+  AC_MSG_CHECKING([whether [$2] [$3] understands [$4]])
   [eval "SAVED_$1"="\"\$$1\""]
   [eval "$1"="\"$4 \$$1\""]
   AC_LANG_PUSH([$2])
@@ -26,7 +26,7 @@ AC_DEFUN([FLAG_ADD], [
     AC_MSG_RESULT([no])
     AS_CASE([m4_default([$5], [optional])],
     [*mandatory*], [
-      AC_MSG_ERROR([$2 $3 support for $4 flag is required!])]))
+      AC_MSG_ERROR([[$2] [$3] support for [$4] flag is required!])]))
 
   [eval "$1"="\"\$SAVED_$1\""]
 

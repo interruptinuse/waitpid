@@ -35,7 +35,7 @@ AS_CASE([$host],
     FLAG_ADD([LDFLAGS],  [C++], [linker],   [-static -static-libstdc++ -static-libgcc])
 
     AC_MSG_NOTICE([setting console subsystem...])
-    FLAG_ADD([CXXFLAGS], [C++], [compiler], [[-Wl,--subsystem,console]])
+    FLAG_ADD([CXXFLAGS], [C++], [compiler], [-Wl,--subsystem,console])
 
     AC_CHECK_TOOL([WINDRES], [windres], AC_MSG_ERROR([windres not found]))
     AC_SUBST([WINDRES])
