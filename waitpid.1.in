@@ -1,4 +1,4 @@
-.TH waitpid 1 "waitpid" "2019-05-16" "@PACKAGE_STRING@"
+.TH waitpid 1 "waitpid" "2019-05-28" "@PACKAGE_STRING@"
 
 .SH NAME
 .IX Header "NAME"
@@ -136,6 +136,10 @@ or
 N-th result as soon as it becomes available.  Not sure if bug.
 .IP \n+[step]
 FreeBSD exit code ptrace(2) intercept is not tested well.
+.IP \n+[step]
+Linux signal-delivery-stops (see ptrace(2)) were not handled correctly; it has
+been fixed, but there might still be some wonks. FreeBSD signal reinjection has
+not been tested at all, so forking or multithreaded processes are at risk.
 
 .SH SEE ALSO
 .IX Header "SEE ALSO"
