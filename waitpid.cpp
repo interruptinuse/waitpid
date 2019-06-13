@@ -111,6 +111,8 @@ void __COMPLAIN(const char *file, const char *func, int line,
   "FATAL: waitpid(%d, NULL, WUNTRACED) failed: %s"
 #define  MSGPTRACESYSCALLFAIL \
   "FATAL: ptrace syscall for PID %d failed: %s"
+#define  MSGPTTOSCEUNKFAIL    \
+  "FATAL: PT_TO_SCE failed, or could not PT_READ_D"
 #define  MSGWAITPID0FAIL      \
   "FATAL: waitpid(%d, 0, 0) failed: %s"
 #define  MSGGETREGSFAIL       \
@@ -338,7 +340,7 @@ int waitpidrc(pid_t pid, double delay) {
     }
   }
 
-  return -1;
+  DIE(1, MSGPTTOSCEUNKFAIL);
 #else
   return 0;
 # warn "Exit code inspection not supported on this platform"
