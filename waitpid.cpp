@@ -103,6 +103,8 @@ void __COMPLAIN(const char *file, const char *func, int line,
 
 #define  MSGWFSOFAIL          \
   "FATAL: WaitForSingleObject failed"
+#define  MSGGECPFAIL          \
+  "FATAL: GetExitCodeProcess failed: last error is %u"
 #define  MSGPTRACEATTACHFAIL  \
   "FATAL: ptrace attach for PID %d failed: %s"
 #define  MSGWAITPIDUTFAIL     \
@@ -168,7 +170,7 @@ int waitpidnorc(pid_t pid, double delay) {
     DIE(EXIT_FAILURE, MSGWFSOFAIL);
 
   if(GetExitCodeProcess(ph, &rc) == FALSE)
-    return -1;
+    DIE(1, MSGGECPFAIL, GetLastError());
 
   return rc;
 #elif  defined(__unix__)
