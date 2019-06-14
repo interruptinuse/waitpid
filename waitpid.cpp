@@ -172,7 +172,7 @@ int waitpidnorc(pid_t pid, double delay) {
     DIE(EXIT_FAILURE, MSGWFSOFAIL);
 
   if(GetExitCodeProcess(ph, &rc) == FALSE)
-    DIE(1, MSGGECPFAIL, GetLastError());
+    DIE(EXIT_FAILURE, MSGGECPFAIL, GetLastError());
 
   return rc;
 #elif  defined(__unix__)
@@ -200,11 +200,11 @@ int waitpidrc(pid_t pid, double delay) {
 
   errno = 0;
   if(ptrace(PTRACE_ATTACH, pid, NULL, NULL) == -1)
-    DIE(1, MSGPTRACEATTACHFAIL, pid, STRERROR);
+    DIE(EXIT_FAILURE, MSGPTRACEATTACHFAIL, pid, STRERROR);
 
   errno = 0;
   if(waitpid(pid, &status, 0) != pid)
-    DIE(1, MSGWAITPID0FAIL, pid, STRERROR);
+    DIE(EXIT_FAILURE, MSGWAITPID0FAIL, pid, STRERROR);
 
   // Detect non-syscall signal traps easier
   ptrace(PTRACE_SETOPTIONS, pid, 0, PTRACE_O_TRACESYSGOOD);
@@ -213,13 +213,13 @@ int waitpidrc(pid_t pid, double delay) {
     // syscall enter
     errno = 0;
     if(ptrace(PTRACE_SYSCALL, pid, 0, signal) == -1)
-      DIE(1, MSGPTRACESYSCALLFAIL, pid, STRERROR);
+      DIE(EXIT_FAILURE, MSGPTRACESYSCALLFAIL, pid, STRERROR);
 
     if(!WIFSTOPPED(status))
       kill(pid, SIGSTOP);
 
     if(waitpid(pid, &status, 0) != pid)
-      DIE(1, MSGWAITPID0FAIL, pid, STRERROR);
+      DIE(EXIT_FAILURE, MSGWAITPID0FAIL, pid, STRERROR);
 
     signal = 0;
 
@@ -252,7 +252,7 @@ int waitpidrc(pid_t pid, double delay) {
     struct user_regs_struct regs;
     errno = 0;
     if(ptrace(PTRACE_GETREGS, pid, 0, &regs) == -1)
-      DIE(1, MSGGETREGSFAIL, pid, STRERROR);
+      DIE(EXIT_FAILURE, MSGGETREGSFAIL, pid, STRERROR);
 
 #if       defined(__i386__)
     switch(regs.orig_eax) {
@@ -277,10 +277,10 @@ int waitpidrc(pid_t pid, double delay) {
     // syscall exit
     errno = 0;
     if(ptrace(PTRACE_SYSCALL, pid, 0, signal) == -1)
-      DIE(1, MSGPTRACESYSCALLFAIL, pid, STRERROR);
+      DIE(EXIT_FAILURE, MSGPTRACESYSCALLFAIL, pid, STRERROR);
 
     if(waitpid(pid, &status, 0) != pid)
-      DIE(1, MSGWAITPID0FAIL, pid, STRERROR);
+      DIE(EXIT_FAILURE, MSGWAITPID0FAIL, pid, STRERROR);
 
     if(WIFSTOPPED(status) == true && WSTOPSIG(status)) {
       switch(WSTOPSIG(status)) {
@@ -340,7 +340,7 @@ int waitpidrc(pid_t pid, double delay) {
     }
   }
 
-  DIE(1, MSGPTTOSCEUNKFAIL);
+  DIE(EXIT_FAILURE, MSGPTTOSCEUNKFAIL);
 #else
   return 0;
 # warn "Exit code inspection not supported on this platform"
