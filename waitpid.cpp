@@ -276,8 +276,8 @@ int waitpidrc(pid_t pid, double delay) {
   if(waitpid(pid, &status, WUNTRACED) != pid)
     DIE(EXIT_FAILURE, MSGWAITPIDUTFAIL, pid, STRERROR);
 
-  // TODO: should probably send SIGSTOP from all ptraces starting here and\
-  // until PT_READ_D, which should resume the process
+  // TODO: should probably send SIGSTOP from all ptraces starting here and
+  // TODO: until PT_READ_D, which should resume the process
   while(ptrace(PT_TO_SCE, pid, (caddr_t)1, 0) == 0) {
     if (wait(0) == -1)
       break;
