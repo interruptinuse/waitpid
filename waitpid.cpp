@@ -67,6 +67,7 @@ extern "C" {
 #include  <algorithm>
 #include  <functional>
 #include  <stdexcept>
+#include  <limits>
 
 
 #if    defined(_WIN32)
@@ -109,8 +110,6 @@ void __COMPLAIN(const char *file, const char *func, int line,
   "FATAL: ptrace attach for PID %d failed: %s"
 #define  MSGWAITPIDUTFAIL     \
   "FATAL: waitpid(%d, NULL, WUNTRACED) failed: %s"
-#define  MSGPTRACESYSCALLFAIL \
-  "FATAL: ptrace syscall for PID %d failed: %s"
 #define  MSGPTTOSCEUNKFAIL    \
   "FATAL: PT_TO_SCE failed, or could not PT_READ_D"
 #define  MSGWAITPID0FAIL      \
@@ -196,7 +195,6 @@ int waitpidrc(pid_t pid, double delay) {
   errno = 0;
 
   int status = 0;
-  int signal = 0;
 
   errno = 0;
   if(ptrace(PTRACE_ATTACH, pid, NULL, NULL) == -1)
@@ -206,100 +204,63 @@ int waitpidrc(pid_t pid, double delay) {
   if(waitpid(pid, &status, 0) != pid)
     DIE(EXIT_FAILURE, MSGWAITPID0FAIL, pid, STRERROR);
 
-  // Detect non-syscall signal traps easier
-  ptrace(PTRACE_SETOPTIONS, pid, 0, PTRACE_O_TRACESYSGOOD);
+  ptrace(PTRACE_SETOPTIONS, pid, 0, PTRACE_O_TRACEEXIT);
+  ptrace(PTRACE_CONT,       pid, 0, 0);
 
   while(true) {
-    // syscall enter
     errno = 0;
-    if(ptrace(PTRACE_SYSCALL, pid, 0, signal) == -1)
-      DIE(EXIT_FAILURE, MSGPTRACESYSCALLFAIL, pid, STRERROR);
-
-    if(!WIFSTOPPED(status))
-      kill(pid, SIGSTOP);
-
     if(waitpid(pid, &status, 0) != pid)
       DIE(EXIT_FAILURE, MSGWAITPID0FAIL, pid, STRERROR);
 
-    signal = 0;
+    if((WSTOPSIG(status) == SIGTRAP) && (status & (PTRACE_EVENT_EXIT << 8))) {
+      struct user_regs_struct regs;
+      errno = 0;
+      if(ptrace(PTRACE_GETREGS, pid, 0, &regs) == -1)
+        DIE(EXIT_FAILURE, MSGGETREGSFAIL, pid, STRERROR);
 
-    if(WIFSTOPPED(status) == true && WSTOPSIG(status)) {
-      switch(WSTOPSIG(status)) {
-      case (SIGTRAP | 0x80):
-        /* a syscall-stop, ignore */
-        break;
-      case SIGTRAP:
-        /* tracer event */
-        if((status >> 16) == PTRACE_EVENT_EXIT) {
-          unsigned long retcode = 0;
-          ptrace(PTRACE_GETEVENTMSG, pid, 0, &retcode);
-          ptrace(PTRACE_DETACH, pid, 0, 0);
-          return static_cast<int>(retcode);
-        }
-        break;
-      case SIGSTOP:
-      case SIGTSTP:
-      case SIGTTIN:
-      case SIGTTOU:
-        /* received a stopping signal, possibly a group-stop */
-        /* (we reinject it regardless) */
+#if       defined(__i386)
+      switch(regs.orig_eax) {
+      case 0x25: // sys_kill
+        // depends on the shell but 128+SIGNAL is most popular
+        regs.ebx = 128+regs.ecx;
+        [[fallthrough]];;
+      case 0x01: // sys_exit
         [[fallthrough]];
-      default:
-        signal = WSTOPSIG(status);
+      case 0xFC: // sys_exit_group
+        ptrace(PTRACE_DETACH, pid, 0, 0);
+        return static_cast<int>(regs.ebx);
       }
-    }
-
-    struct user_regs_struct regs;
-    errno = 0;
-    if(ptrace(PTRACE_GETREGS, pid, 0, &regs) == -1)
-      DIE(EXIT_FAILURE, MSGGETREGSFAIL, pid, STRERROR);
-
-#if       defined(__i386__)
-    switch(regs.orig_eax) {
-    case 0x01: // sys_exit
-      [[fallthrough]];
-    case 0xFC: // sys_exit_group
-      ptrace(PTRACE_DETACH, pid, 0, 0);
-      return static_cast<int>(regs.ebx);
-    }
 #elif     defined(__x86_64__)
-    switch(regs.orig_rax) {
-    case 0x3C: // sys_exit
-      [[fallthrough]];
-    case 0xE7: // sys_exit_group
-      ptrace(PTRACE_DETACH, pid, 0, 0);
-      return static_cast<int>(regs.rdi);
-    }
-#else
-# error "Unsupported architecture"
-#endif
-
-    // syscall exit
-    errno = 0;
-    if(ptrace(PTRACE_SYSCALL, pid, 0, signal) == -1)
-      DIE(EXIT_FAILURE, MSGPTRACESYSCALLFAIL, pid, STRERROR);
-
-    if(waitpid(pid, &status, 0) != pid)
-      DIE(EXIT_FAILURE, MSGWAITPID0FAIL, pid, STRERROR);
-
-    if(WIFSTOPPED(status) == true && WSTOPSIG(status)) {
-      switch(WSTOPSIG(status)) {
-      case (SIGTRAP | 0x80):
-        /* a syscall-stop, ignore */
-        break; \
-      case SIGSTOP:
-      case SIGTSTP:
-      case SIGTTIN:
-      case SIGTTOU:
-        /* received a stopping signal, possibly a group-stop */
-        /* (we reinject it regardless) */
+      switch(regs.orig_rax) {
+      case 0x3e: // sys_kill
+        // depends on the shell but 128+SIGNAL is most popular
+        regs.rdi = 128+regs.rsi;
+        [[fallthrough]];;
+      case 0x3C: // sys_exit
         [[fallthrough]];
-      default:
-        signal = WSTOPSIG(status);
+      case 0xE7: // sys_exit_group
+        ptrace(PTRACE_DETACH, pid, 0, 0);
+        return static_cast<int>(regs.rdi);
       }
+#else
+# error "Unsupported architecture for GNU/Linux"
+#endif
+      unsigned long retcode = std::numeric_limits<unsigned long>::max();
+      ptrace(PTRACE_GETEVENTMSG, pid, 0, &retcode);
+
+      // if retcode is set to our default, set it to 255, which is basically
+      // the "everything failed" return value
+      if(retcode == std::numeric_limits<unsigned long>::max()) {
+        retcode = std::numeric_limits<unsigned char>::max();
+      }
+
+      return static_cast<int>(retcode);
     }
 
+    ptrace(PTRACE_CONT, pid, 0, WSTOPSIG(status));
   }
+
+  return -1;
 #elif     defined(__FreeBSD__)
   struct reg registers;
 
