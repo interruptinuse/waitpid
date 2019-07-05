@@ -52,7 +52,7 @@ processes (see \fIIMPLEMENTATION DETAILS\fR).  Therefore, when exit codes are
 requested (i.e. when \(lq-C\(rq is not \fBignore\fR),
 .IR waitpid (1)
 uses
-.IR ptrace(2)
+.IR ptrace (2)
 to intercept exit syscalls.
 .RE
 .TP
