@@ -31,3 +31,10 @@ waitpid.1: waitpid.1.in Makefile
 	$(PKG_V_SED)sed \
 	  -e 's/[@]PACKAGE_STRING[@]/$(PACKAGE_STRING)/g' \
 	  <$< >$@
+
+PKG_V_GROFF   = $(PKG_V_GROFF_@AM_V@)
+PKG_V_GROFF_  = $(PKG_V_GROFF_@AM_DEFAULT_V@)
+PKG_V_GROFF_0 = @echo "  GROFF    "$@;
+waitpid.1.html: waitpid.1 Makefile
+	$(PKG_V_GROFF)env TZ=UTC groff \
+	  -mandoc -Thtml <$< >$@
