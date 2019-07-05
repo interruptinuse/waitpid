@@ -116,6 +116,8 @@ void __COMPLAIN(const char *file, const char *func, int line,
   "FATAL: waitpid(%d, 0, 0) failed: %s"
 #define  MSGGETREGSFAIL       \
   "FATAL: ptrace register inspection for PID %d failed: %s"
+#define  MSGBADRETCODE        \
+  "ERROR: failed to determine return code of PID %d, assuming 255"
 #define  MSGINVALIDDELAY      \
   "FATAL: Could not interpret argument as a valid delay in seconds: -D%s"
 #define  MSGINVALIDCODE       \
@@ -251,6 +253,7 @@ int waitpidrc(pid_t pid, double delay) {
       // if retcode is set to our default, set it to 255, which is basically
       // the "everything failed" return value
       if(retcode == std::numeric_limits<unsigned long>::max()) {
+        COMPLAIN(MSGBADRETCODE, pid);
         retcode = std::numeric_limits<unsigned char>::max();
       }
 
