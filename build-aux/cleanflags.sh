@@ -2,7 +2,8 @@
 # Usage: CXXFLAGS="$(build-aux/cleanflags.sh "$CXXFLAGS")"
 
 if [[ ${BASH_SOURCE[0]} == "$0" ]]; then
-  FLAGS=($1) ; shift 1
+  IFS=$' \t\n' read -r -a FLAGS <<< "$1"
+  shift 1
 
   unset RESULT
   typeset -a RESULT
