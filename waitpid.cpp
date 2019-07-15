@@ -225,7 +225,7 @@ int waitpidrc(pid_t pid, double delay) {
       case 0x25: // sys_kill
         // depends on the shell but 128+SIGNAL is most popular
         regs.ebx = 128+regs.ecx;
-        [[fallthrough]];;
+        [[fallthrough]];
       case 0x01: // sys_exit
         [[fallthrough]];
       case 0xFC: // sys_exit_group
@@ -237,7 +237,7 @@ int waitpidrc(pid_t pid, double delay) {
       case 0x3e: // sys_kill
         // depends on the shell but 128+SIGNAL is most popular
         regs.rdi = 128+regs.rsi;
-        [[fallthrough]];;
+        [[fallthrough]];
       case 0x3C: // sys_exit
         [[fallthrough]];
       case 0xE7: // sys_exit_group
@@ -262,8 +262,6 @@ int waitpidrc(pid_t pid, double delay) {
 
     ptrace(PTRACE_CONT, pid, 0, WSTOPSIG(status));
   }
-
-  return -1;
 #elif     defined(__FreeBSD__)
   struct reg registers;
 
@@ -314,7 +312,8 @@ int waitpidrc(pid_t pid, double delay) {
 int waiter(pid_t pid, double delay, bool checkrc,
            function<void(int)> callback) {
   int rc = (checkrc ? waitpidrc : waitpidnorc)(pid, delay);
-  if(checkrc) callback(rc);
+  if(checkrc)
+    callback(rc);
   return rc;
 }
 
@@ -350,9 +349,9 @@ int main(int argc, char **argv) {
   int opt;
   while((opt = getopt(argc, argv, ":D:C:h")) !=
 #if       defined(_WIN32)
-      EOF
+    EOF
 #else
-      -1
+    -1
 #endif // defined(_WIN32)
 ) {switch(opt) {
     case 'D': {
@@ -445,7 +444,7 @@ std::cerr << PACKAGE_STRING << std::endl;
     pids.push_back(pid);
 
     threads.emplace_back(waiter, pid, delay, checkrc, [&codes, i](int rc) {
-        IOCRITICAL({ codes[i-TO_SIZE(optind)] = rc; });
+      IOCRITICAL({ codes[i-TO_SIZE(optind)] = rc; });
     });
   }
 

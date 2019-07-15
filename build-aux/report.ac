@@ -7,7 +7,7 @@ _ck() {
   printf "%${PAD-0}s" "$*"
   tput sgr0      2>/dev/null || printf ''
 }
-# print colored "value" (variable value) or "(empty)
+# print colored "value" (variable value) or "(empty)"
 _cv() {
   PAD="${PAD-0}"
   if test -n "$*" ; then
