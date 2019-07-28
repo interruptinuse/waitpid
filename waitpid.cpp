@@ -107,7 +107,7 @@ void __COMPLAIN(const char *file, const char *func, int line,
 #define  MSGGECPFAIL          \
   "FATAL: GetExitCodeProcess failed: last error is %u"
 #define  MSGPTRACEATTACHFAIL  \
-  "FATAL: ptrace attach for PID %d failed: %s"
+  "FATAL: ptrace(2) attach for PID %d failed: %s"
 #define  MSGWAITPIDUTFAIL     \
   "FATAL: waitpid(%d, NULL, WUNTRACED) failed: %s"
 #define  MSGPTTOSCEUNKFAIL    \
@@ -115,11 +115,11 @@ void __COMPLAIN(const char *file, const char *func, int line,
 #define  MSGWAITPID0FAIL      \
   "FATAL: waitpid(%d, 0, 0) failed: %s"
 #define  MSGGETREGSFAIL       \
-  "FATAL: ptrace register inspection for PID %d failed: %s"
+  "FATAL: ptrace(2) register inspection for PID %d failed: %s"
 #define  MSGSYSKILL           \
   "WARNING: PID %d terminated, intercepting sys_kill and assuming 128+SIGNAL: %d"
 #define  MSGBADRETCODE        \
-  "ERROR: failed to determine return code of PID %d, assuming 255"
+  "ERROR: Failed to determine return code of PID %d, assuming 255"
 #define  MSGINVALIDDELAY      \
   "FATAL: Could not interpret argument as a valid delay in seconds: -D%s"
 #define  MSGINVALIDCODE       \
@@ -298,7 +298,6 @@ int waitpidrc(pid_t pid, double delay) {
 #else
 # error "Unsupported architecture"
 #endif
-
     if(registers.SCNUM == 1) { // exit syscall
       int rc = ptrace(PT_READ_D, pid, (caddr_t)registers.STPTR+sizeof(int), 0);
       ptrace(PT_DETACH, pid, (caddr_t)1, 0);
