@@ -116,6 +116,8 @@ void __COMPLAIN(const char *file, const char *func, int line,
   "FATAL: waitpid(%d, 0, 0) failed: %s"
 #define  MSGGETREGSFAIL       \
   "FATAL: ptrace register inspection for PID %d failed: %s"
+#define  MSGSYSKILL           \
+  "WARNING: PID %d terminated, intercepting sys_kill and assuming 128+SIGNAL: %d"
 #define  MSGBADRETCODE        \
   "ERROR: failed to determine return code of PID %d, assuming 255"
 #define  MSGINVALIDDELAY      \
@@ -225,6 +227,7 @@ int waitpidrc(pid_t pid, double delay) {
       case 0x25: // sys_kill
         // depends on the shell but 128+SIGNAL is most popular
         regs.ebx = 128+regs.ecx;
+        COMPLAIN(MSGSYSKILL, pid, static_cast<int>(regs.ebx));
         [[fallthrough]];
       case 0x01: // sys_exit
         [[fallthrough]];
@@ -237,6 +240,7 @@ int waitpidrc(pid_t pid, double delay) {
       case 0x3e: // sys_kill
         // depends on the shell but 128+SIGNAL is most popular
         regs.rdi = 128+regs.rsi;
+        COMPLAIN(MSGSYSKILL, pid, static_cast<int>(regs.rdi));
         [[fallthrough]];
       case 0x3C: // sys_exit
         [[fallthrough]];
