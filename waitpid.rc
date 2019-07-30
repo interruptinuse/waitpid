@@ -1,8 +1,8 @@
 #include <windows.h>
 
 1 VERSIONINFO
-FILEVERSION     0,24,0,0
-PRODUCTVERSION  0,24,0,0
+FILEVERSION     0,25,0,0
+PRODUCTVERSION  0,25,0,0
 FILETYPE        VFT_APP
 FILEOS          VOS__WINDOWS32
 BEGIN
@@ -11,11 +11,11 @@ BEGIN
     BLOCK "040904E4"
     BEGIN
       VALUE "ProductName",      "waitpid"
-      VALUE "ProductVersion",   "0.24"
+      VALUE "ProductVersion",   "0.25"
       VALUE "InternalName",     "waitpid"
       VALUE "FileDescription",  ""
       VALUE "OriginalFilename", "waitpid.exe"
-      VALUE "FileVersion",      "0.24"
+      VALUE "FileVersion",      "0.25"
       VALUE "CompanyName",      ""
     END
   END
