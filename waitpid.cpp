@@ -117,7 +117,7 @@ void __COMPLAIN(const char *file, const char *func, int line,
 #define  MSGGETREGSFAIL       \
   "FATAL: ptrace(2) register inspection for PID %d failed: %s"
 #define  MSGSYSKILL           \
-  "WARNING: PID %d terminated, intercepting sys_kill and assuming 128+SIGNAL: %d"
+  "WARNING: PID %d terminated by signal, assuming 128+SIGNAL: %d"
 #define  MSGBADRETCODE        \
   "ERROR: Failed to determine return code of PID %d, assuming 255"
 #define  MSGINVALIDDELAY      \
@@ -216,55 +216,86 @@ int waitpidrc(pid_t pid, double delay) {
     if(waitpid(pid, &status, 0) != pid)
       DIE(EXIT_FAILURE, MSGWAITPID0FAIL, pid, STRERROR);
 
-    if((WSTOPSIG(status) == SIGTRAP) && (status & (PTRACE_EVENT_EXIT << 8))) {
-      struct user_regs_struct regs;
-      errno = 0;
-      if(ptrace(PTRACE_GETREGS, pid, 0, &regs) == -1)
-        DIE(EXIT_FAILURE, MSGGETREGSFAIL, pid, STRERROR);
+    int  signal     = 0;
+    int  wstopsig   = 0;
+    bool wifstopped = false;
+
+    if((wstopsig = WSTOPSIG(status))) {
+      wifstopped = !!WIFSTOPPED(status);
+
+      switch(wstopsig) {
+      case (SIGTRAP | 0x80):
+        /* a syscall-stop, ignore */
+        break;
+      case SIGTRAP: /* tracer event */
+        if(status & (PTRACE_EVENT_EXIT << 8)) {
+          struct user_regs_struct regs;
+          errno = 0;
+          if(ptrace(PTRACE_GETREGS, pid, 0, &regs) == -1)
+            DIE(EXIT_FAILURE, MSGGETREGSFAIL, pid, STRERROR);
 
 #if       defined(__i386)
-      switch(regs.orig_eax) {
-      case 0x25: // sys_kill
-        // depends on the shell but 128+SIGNAL is most popular
-        regs.ebx = 128+regs.ecx;
-        COMPLAIN(MSGSYSKILL, pid, static_cast<int>(regs.ebx));
-        [[fallthrough]];
-      case 0x01: // sys_exit
-        [[fallthrough]];
-      case 0xFC: // sys_exit_group
-        ptrace(PTRACE_DETACH, pid, 0, 0);
-        return static_cast<int>(regs.ebx);
-      }
+          switch(regs.orig_eax) {
+          case 0x25: // sys_kill
+            // depends on the shell but 128+SIGNAL is most popular
+            regs.ebx = 128+regs.ecx;
+            COMPLAIN(MSGSYSKILL, pid, static_cast<int>(regs.ebx));
+            [[fallthrough]];
+          case 0x01: // sys_exit
+            [[fallthrough]];
+          case 0xFC: // sys_exit_group
+            ptrace(PTRACE_DETACH, pid, 0, 0);
+            return static_cast<int>(regs.ebx);
+          }
 #elif     defined(__x86_64__)
-      switch(regs.orig_rax) {
-      case 0x3e: // sys_kill
-        // depends on the shell but 128+SIGNAL is most popular
-        regs.rdi = 128+regs.rsi;
-        COMPLAIN(MSGSYSKILL, pid, static_cast<int>(regs.rdi));
-        [[fallthrough]];
-      case 0x3C: // sys_exit
-        [[fallthrough]];
-      case 0xE7: // sys_exit_group
-        ptrace(PTRACE_DETACH, pid, 0, 0);
-        return static_cast<int>(regs.rdi);
-      }
+          switch(regs.orig_rax) {
+          case 0x3e: // sys_kill
+            // depends on the shell but 128+SIGNAL is most popular
+            regs.rdi = 128+regs.rsi;
+            COMPLAIN(MSGSYSKILL, pid, static_cast<int>(regs.rdi));
+            [[fallthrough]];
+          case 0x3C: // sys_exit
+            [[fallthrough]];
+          case 0xE7: // sys_exit_group
+            ptrace(PTRACE_DETACH, pid, 0, 0);
+            return static_cast<int>(regs.rdi);
+          }
 #else
 # error "Unsupported architecture for GNU/Linux"
 #endif
-      unsigned long retcode = std::numeric_limits<unsigned long>::max();
-      ptrace(PTRACE_GETEVENTMSG, pid, 0, &retcode);
+          unsigned long retcode = std::numeric_limits<unsigned long>::max();
+          ptrace(PTRACE_GETEVENTMSG, pid, 0, &retcode);
 
-      // if retcode is set to our default, set it to 255, which is basically
-      // the "everything failed" return value
-      if(retcode == std::numeric_limits<unsigned long>::max()) {
-        COMPLAIN(MSGBADRETCODE, pid);
-        retcode = std::numeric_limits<unsigned char>::max();
+          // If we're handling PTRACE_EVENT_EXIT and WIFSTOPPED(status) is true,
+          // the process has received a terminating signal.  This is the same
+          // situation as with sys_kill handling above.
+          if(wifstopped) {
+            COMPLAIN(MSGSYSKILL, pid, static_cast<int>(128+retcode));
+            return static_cast<int>(128+retcode);
+          }
+
+          // if retcode is set to our default, set it to 255, which is basically
+          // the "everything failed" return value
+          if(retcode == std::numeric_limits<unsigned long>::max()) {
+            COMPLAIN(MSGBADRETCODE, pid);
+            retcode = std::numeric_limits<unsigned char>::max();
+          }
+
+          return static_cast<int>(retcode);
+        }
+
+        break;
+      case SIGSTOP:
+      case SIGTSTP:
+      case SIGTTIN:
+      case SIGTTOU:
+        [[fallthrough]];
+      default:
+        signal = WSTOPSIG(status);
       }
-
-      return static_cast<int>(retcode);
     }
 
-    ptrace(PTRACE_CONT, pid, 0, WSTOPSIG(status));
+    ptrace(PTRACE_CONT, pid, 0, signal);
   }
 #elif     defined(__FreeBSD__)
   struct reg registers;
