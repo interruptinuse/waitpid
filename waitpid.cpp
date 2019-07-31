@@ -116,6 +116,8 @@ void __COMPLAIN(const char *file, const char *func, int line,
   "FATAL: waitpid(%d, 0, 0) failed: %s"
 #define  MSGGETREGSFAIL       \
   "FATAL: ptrace(2) register inspection for PID %d failed: %s"
+#define  MSGWIN32UNUSUALEXIT  \
+  "WARNING: PID %d has exited unusually: %s (exit status 0x%04X/%d)"
 #define  MSGSYSKILL           \
   "WARNING: PID %d terminated by signal, assuming 128+SIGNAL: %d"
 #define  MSGBADRETCODE        \
@@ -163,6 +165,102 @@ void dsleep(double secs) {
 }
 
 
+#if    defined(_WIN32)
+struct win32ntstatus {
+  DWORD       rc;
+  const char* macro;
+};
+
+/* The following is a non-exhaustive list of possible *abnormal termination*
+ * exit codes.  waitpid(1) must only warn about well-known abnormal termination
+ * exit codes which are set by the operating system or the runtime.
+ * All these codes are from NTSTATUS;  WinError codes are apparently only
+ * returned by processes normally, and we don't want to warn about that.
+ *
+ * REFERENCES:
+ * [1] List of peculiar exit codes on Windows:
+ *   https://peteronprogramming.wordpress.com/2018/05/29/list-of-peculiar-exit-codes-on-windows/
+ *
+ * [2] NTSTATUS documentation:
+ *   https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-erref/596a1078-e883-4972-9bbc-49e60bebca55
+ *
+ * [3] NTSTATUS values, tab separated:
+ *   https://pastebin.com/raw/CqLreHhE
+ *
+ * [4] Windows System Error Codes:
+ *   https://www.symantec.com/connect/articles/windows-system-error-codes-exit-codes-description
+ *
+ * [5] MsiExec.exe and InstMsi.exe Error Messages:
+ *   https://docs.microsoft.com/en-us/windows/win32/msi/error-codes
+ */
+static win32ntstatus win32ntstatuses[] = {
+  { 0xC000013A, "STATUS_CONTROL_C_EXIT (interrupted by user)" },
+  { 0x00000001, "terminated by process manager" },
+  { 0x00000003, "CRT abort" },
+  { 0x40000015, "STATUS_FATAL_APP_EXIT, or CRT abort" },
+  { 0x40010004, "DBG_TERMINATE_PROCESS, or killed on system shutdown" },
+  { 0xC0000409, "STATUS_STACK_BUFFER_OVERRUN, or a fastfail exception" },
+  { 0x000000FF, "terminated with error reporting" },
+  { 0xCFFFFFFF, "terminated as non-responsive" },
+  { 0xC0000001, "STATUS_UNSUCCESSFUL" },
+  { 0xC0000005, "STATUS_ACCESS_VIOLATION" },
+  { 0xC000001D, "STATUS_ILLEGAL_INSTRUCTION" },
+  { 0xC000014B, "STATUS_PIPE_BROKEN" },
+  { 0xC0000006, "STATUS_IN_PAGE_ERROR" },
+  { 0xC0000007, "STATUS_PAGEFILE_QUOTA" },
+  { 0xC0000009, "STATUS_BAD_INITIAL_STACK" },
+  { 0xC000000A, "STATUS_BAD_INITIAL_PC" },
+  { 0xC0000144, "STATUS_UNHANDLED_EXCEPTION" },
+  { 0xC0000135, "STATUS_DLL_NOT_FOUND" },
+  { 0xC0000142, "STATUS_DLL_INIT_FAILED" },
+  { 0x00000116, "STATUS_CRASH_DUMP" },
+  { 0x40000023, "STATUS_IMAGE_MACHINE_TYPE_MISMATCH_EXE" },
+  { 0x80000003, "STATUS_BREAKPOINT" },
+
+  /* SEH exceptions */
+  { 0x80000002, "STATUS_DATATYPE_MISALIGNMENT" },
+  { 0x80000004, "STATUS_SINGLE_STEP" },
+  { 0xC000008D, "STATUS_FLOAT_DENORMAL_OPERAND" },
+  { 0xC000008E, "STATUS_FLOAT_DIVIDE_BY_ZERO" },
+  { 0xC000008F, "STATUS_FLOAT_INEXACT_RESULT" },
+  { 0xC0000090, "STATUS_FLOAT_INVALID_OPERATION" },
+  { 0xC0000091, "STATUS_FLOAT_OVERFLOW" },
+  { 0xC0000092, "STATUS_FLOAT_STACK_CHECK" },
+  { 0xC0000093, "STATUS_FLOAT_UNDERFLOW" },
+  { 0xC00002B4, "STATUS_FLOAT_MULTIPLE_FAULTS" },
+  { 0xC00002B5, "STATUS_FLOAT_MULTIPLE_TRAPS" },
+
+  /* memory exceptions */
+  { 0x80000001, "STATUS_GUARD_PAGE_VIOLATION" },
+  { 0x80000005, "STATUS_BUFFER_OVERFLOW" },
+  { 0xC0000017, "STATUS_NO_MEMORY" },
+  { 0xC000001A, "STATUS_UNABLE_TO_FREE_VM" },
+  { 0xC0000022, "STATUS_ACCESS_DENIED" },
+  { 0xC0000023, "STATUS_BUFFER_TOO_SMALL" },
+  { 0xC0000025, "STATUS_NONCONTINUABLE_EXCEPTION" },
+  { 0xC0000026, "STATUS_INVALID_DISPOSITION" },
+  { 0xC0000027, "STATUS_UNWIND" },
+  { 0xC0000028, "STATUS_BAD_STACK" },
+  { 0xC0000029, "STATUS_INVALID_UNWIND_TARGET" },
+  { 0xC000002A, "STATUS_NOT_LOCKED" },
+  { 0xC000002B, "STATUS_PARITY_ERROR" },
+  { 0xC000002C, "STATUS_UNABLE_TO_DECOMMIT_VM" },
+  { 0xC000002D, "STATUS_NOT_COMMITTED" },
+};
+
+template<class T, size_t N>
+constexpr size_t arraysize(T (&)[N]) { return N; }
+
+struct win32ntstatus win32_unusual_exit(DWORD rc) {
+  for(auto d: win32ntstatuses)
+    if(rc == d.rc)
+      return d;
+
+  return {0, ""};
+}
+#endif
+
+
 int waitpidnorc(pid_t pid, double delay) {
 #if    defined(_WIN32)
   DWORD rc = 0;
@@ -176,6 +274,11 @@ int waitpidnorc(pid_t pid, double delay) {
 
   if(GetExitCodeProcess(ph, &rc) == FALSE)
     DIE(EXIT_FAILURE, MSGGECPFAIL, GetLastError());
+
+  win32ntstatus d = win32_unusual_exit(rc);
+  if(d.rc != 0) {
+    COMPLAIN(MSGWIN32UNUSUALEXIT, pid, d.macro, d.rc, d.rc);
+  }
 
   return rc;
 #elif  defined(__unix__)
