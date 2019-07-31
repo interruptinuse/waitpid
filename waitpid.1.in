@@ -1,4 +1,4 @@
-.TH waitpid 1 "waitpid" "2019-05-28" "@PACKAGE_STRING@"
+.TH waitpid 1 "waitpid" "2019-07-31" "@PACKAGE_STRING@"
 
 .SH NAME
 .IX Header "NAME"
@@ -114,9 +114,6 @@ Wait for the three processes to finish, then return the exit code of PID 40.
 .IX Header "BUGS"
 .nr step 1 1
 .IP \n[step] 4
-.IR ptrace (2)
-syscall intercept is only implemented for Linux.
-.IP \n+[step]
 If tracing retcodes on 64-bit Linux with CONFIG_IA32_EMULATION, waitpid(1) must
 be compiled for the same architecture as the traced application (i.e. both
 32-bit or both 64-bit).  It's hard (and impossible, if talking about
