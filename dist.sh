@@ -10,7 +10,7 @@ autoreconf -fvi
 ./configure --host=i686-w64-mingw32 CXXFLAGS="-g0"
 
 make
-i686-w64-mingw32-strip --strip-debug waitpid.exe
+i686-w64-mingw32-strip --strip-all waitpid.exe
 
 make waitpid.1.html
 make dist
