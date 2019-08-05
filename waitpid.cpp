@@ -1,26 +1,32 @@
 /*
  * Usage: waitpid [OPTION]... [--] PID...
  * Wait until all PIDs exit.
- *
- * waitpid(1) accepts a list of process IDs and then checks them for
- * termination.  When all PIDs terminate, waitpid(1) exits.  Optionally,
- * waitpid(1) will also display exit codes.
- *
- * OPTIONS
- *   -D DELAY  (default: 0.5)
- *         Set delay in seconds between polling events for each PID.
- *         When not on Windows, and CODE is set to anything other than `ignore`,
- *         DELAY means nothing because instead of kill(2) polling, ptrace(2)
- *         syscall intercept is done instead.
- *   -C CODE   (default: ignore)
- *         Choose what to do with exit codes after all PIDs terminate.
- *         0, ignore ... waitpid(1) will return 0.  Never uses ptrace(2).
- *         (integer N) . waitpid(1) will return exit code of the N-th PID as
- *                       specified on the command line, starting from 1.
- *         min, max .... waitpid(1) will return the least/largest code.
- *         print ....... waitpid(1) will print pairs "PID: EXIT_CODE" in order
- *                       of PIDs specified on the command line, and return 0.
  */
+
+static const char WAITPID_HELP_TEXT[] = \
+R"END(Usage: waitpid [OPTION]... [--] PID...
+Wait until all PIDs exit.
+
+waitpid(1) accepts a list of process IDs and then checks them for
+termination.  When all PIDs terminate, waitpid(1) exits.  Optionally,
+waitpid(1) will also display exit codes.
+
+OPTIONS
+  -D DELAY  (default: 0.5)
+        Set delay in seconds between polling events for each PID.
+        When not on Windows, and CODE is set to anything other than `ignore`,
+        DELAY means nothing because instead of kill(2) polling, ptrace(2)
+        syscall intercept is done instead.
+  -C CODE   (default: ignore)
+        Choose what to do with exit codes after all PIDs terminate.
+        0, ignore ... waitpid(1) will return 0.  Never uses ptrace(2).
+        (integer N) . waitpid(1) will return exit code of the N-th PID as
+                      specified on the command line, starting from 1.
+        min, max .... waitpid(1) will return the least/largest code.
+        print ....... waitpid(1) will print pairs "PID: EXIT_CODE" in order
+                      of PIDs specified on the command line, and return 0.
+)END";
+
 
 #if    defined(_WIN32)
 #elif  defined(__linux__)
@@ -519,28 +525,7 @@ int main(int argc, char **argv) {
       break;
     }
     case 'h':
-      std::cerr << R"END(Usage: waitpid [OPTION]... [--] PID...
-Wait until all PIDs exit.
-
-waitpid(1) accepts a list of process IDs and then checks them for
-termination.  When all PIDs terminate, waitpid(1) exits.  Optionally,
-waitpid(1) will also display exit codes.
-
-OPTIONS
-  -D DELAY  (default: 0.5)
-        Set delay in seconds between polling events for each PID.
-        When not on Windows, and CODE is set to anything other than `ignore`,
-        DELAY means nothing because instead of kill(2) polling, ptrace(2)
-        syscall intercept is done instead.
-  -C CODE   (default: ignore)
-        Choose what to do with exit codes after all PIDs terminate.
-        0, ignore ... waitpid(1) will return 0.  Never uses ptrace(2).
-        (integer N) . waitpid(1) will return exit code of the N-th PID as
-                      specified on the command line, starting from 1.
-        min, max .... waitpid(1) will return the least/largest code.
-        print ....... waitpid(1) will print pairs "PID: EXIT_CODE" in order
-                      of PIDs specified on the command line, and return 0.
-)END";
+      std::cerr << WAITPID_HELP_TEXT;
 #ifndef PACKAGE_STRING
 #define PACKAGE_STRING "waitpid"
 #endif // PACKAGE_STRING
