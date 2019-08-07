@@ -258,9 +258,11 @@ template<class T, size_t N>
 constexpr size_t arraysize(T (&)[N]) { return N; }
 
 struct win32ntstatus win32_unusual_exit(DWORD rc) {
-  for(auto d: win32ntstatuses)
-    if(rc == d.rc)
+  for(auto d: win32ntstatuses) {
+    if(rc == d.rc) {
       return d;
+    }
+  }
 
   return {0, ""};
 }
@@ -275,13 +277,16 @@ int waitpidnorc(pid_t pid, double delay) {
                           static_cast<DWORD>(pid));
   DWORD ws = WaitForSingleObject(ph, INFINITE);
 
-  if(ws == WAIT_FAILED)
+  if(ws == WAIT_FAILED) {
     DIE(EXIT_FAILURE, MSGWFSOFAIL);
+  }
 
-  if(GetExitCodeProcess(ph, &rc) == FALSE)
+  if(GetExitCodeProcess(ph, &rc) == FALSE) {
     DIE(EXIT_FAILURE, MSGGECPFAIL, GetLastError());
+  }
 
   win32ntstatus d = win32_unusual_exit(rc);
+
   if(d.rc != 0) {
     COMPLAIN(MSGWIN32UNUSUALEXIT, pid, d.macro, d.rc, d.rc);
   }
@@ -310,20 +315,23 @@ int waitpidrc(pid_t pid, double delay) {
   int status = 0;
 
   errno = 0;
-  if(ptrace(PTRACE_ATTACH, pid, NULL, NULL) == -1)
+  if(ptrace(PTRACE_ATTACH, pid, NULL, NULL) == -1) {
     DIE(EXIT_FAILURE, MSGPTRACEATTACHFAIL, pid, STRERROR);
+  }
 
   errno = 0;
-  if(waitpid(pid, &status, 0) != pid)
+  if(waitpid(pid, &status, 0) != pid) {
     DIE(EXIT_FAILURE, MSGWAITPID0FAIL, pid, STRERROR);
+  }
 
   ptrace(PTRACE_SETOPTIONS, pid, 0, PTRACE_O_TRACEEXIT);
   ptrace(PTRACE_CONT,       pid, 0, 0);
 
   while(true) {
     errno = 0;
-    if(waitpid(pid, &status, 0) != pid)
+    if(waitpid(pid, &status, 0) != pid) {
       DIE(EXIT_FAILURE, MSGWAITPID0FAIL, pid, STRERROR);
+    }
 
     int  signal     = 0;
     int  wstopsig   = 0;
@@ -340,8 +348,9 @@ int waitpidrc(pid_t pid, double delay) {
         if(status & (PTRACE_EVENT_EXIT << 8)) {
           struct user_regs_struct regs;
           errno = 0;
-          if(ptrace(PTRACE_GETREGS, pid, 0, &regs) == -1)
+          if(ptrace(PTRACE_GETREGS, pid, 0, &regs) == -1) {
             DIE(EXIT_FAILURE, MSGGETREGSFAIL, pid, STRERROR);
+          }
 
 #if       defined(__i386)
           switch(regs.orig_eax) {
@@ -410,24 +419,27 @@ int waitpidrc(pid_t pid, double delay) {
   struct reg registers;
 
   errno = 0;
-
-  if(ptrace(PT_ATTACH, pid, (caddr_t)0, SIGSTOP))
+  if(ptrace(PT_ATTACH, pid, (caddr_t)0, SIGSTOP)) {
     DIE(EXIT_FAILURE, MSGPTRACEATTACHFAIL, pid, STRERROR);
+  }
 
   int status = 0;
-  if(waitpid(pid, &status, WUNTRACED) != pid)
+
+  if(waitpid(pid, &status, WUNTRACED) != pid) {
     DIE(EXIT_FAILURE, MSGWAITPIDUTFAIL, pid, STRERROR);
+  }
 
   // TODO: should probably send SIGSTOP from all ptraces starting here and
   // TODO: until PT_READ_D, which should resume the process
   while(ptrace(PT_TO_SCE, pid, (caddr_t)1, 0) == 0) {
-    if (wait(0) == -1)
+    if(wait(0) == -1) {
       break;
+    }
 
     errno = 0;
-
-    if(ptrace(PT_GETREGS, pid, (caddr_t)&registers, 0))
+    if(ptrace(PT_GETREGS, pid, (caddr_t)&registers, 0)) {
       DIE(EXIT_FAILURE, MSGGETREGSFAIL, pid, STRERROR);
+    }
 
 #if       defined(__i386__)
 # define SCNUM  r_eax
@@ -455,8 +467,11 @@ int waitpidrc(pid_t pid, double delay) {
 int waiter(pid_t pid, double delay, bool checkrc,
            function<void(int)> callback) {
   int rc = (checkrc ? waitpidrc : waitpidnorc)(pid, delay);
-  if(checkrc)
+
+  if(checkrc) {
     callback(rc);
+  }
+
   return rc;
 }
 
@@ -469,12 +484,15 @@ int process_codes(vector<int>& codes, vector<pid_t>& pids, int op) {
   case -2:
     return *std::max_element(codes.begin(), codes.end());
   case -3:
-    for(st i = 0; i < codes.size(); i++)
+    for(st i = 0; i < codes.size(); i++) {
       std::cout << pids[i] << ": " << codes[i] << std::endl;
+    }
+
     return 0;
   default:
-    if(op < -3 || TO_SIZE(op) > codes.size())
+    if(op < -3 || TO_SIZE(op) > codes.size()) {
       return -1;
+    }
 
     return codes[TO_SIZE(op)-1];
   }
@@ -501,8 +519,9 @@ int main(int argc, char **argv) {
       errno = 0;
       double d = strtod(optarg, nullptr);
 
-      if(errno || d <= 0)
+      if(errno || d <= 0) {
         DIE(EXIT_FAILURE, MSGINVALIDDELAY, optarg);
+      }
 
       delay = d;
       break;
@@ -519,8 +538,9 @@ int main(int argc, char **argv) {
       errno = 0;
       op = static_cast<int>(strtol(optarg, &endptr, 0));
 
-      if(errno || op < 0 || endptr == optarg)
+      if(errno || op < 0 || endptr == optarg) {
         DIE(EXIT_FAILURE, MSGINVALIDCODE, optarg);
+      }
 
       break;
     }
@@ -529,7 +549,7 @@ int main(int argc, char **argv) {
 #ifndef PACKAGE_STRING
 #define PACKAGE_STRING "waitpid"
 #endif // PACKAGE_STRING
-std::cerr << PACKAGE_STRING << std::endl;
+      std::cerr << PACKAGE_STRING << std::endl;
       exit(EXIT_FAILURE);
     case ':':
       DIE(EXIT_FAILURE, MSGGETOPTNOARG, optopt);
@@ -540,27 +560,31 @@ std::cerr << PACKAGE_STRING << std::endl;
     }
   }
 
-  if(optind >= argc)
+  if(optind >= argc) {
     DIE(EXIT_FAILURE, MSGNOPIDS);
+  }
 
   checkrc = !!op;
 
   const size_t pid_count = TO_SIZE(argc)-TO_SIZE(optind);
   codes.resize(pid_count, -1);
 
-  if(op > 0 && TO_SIZE(op) > pid_count)
+  if(op > 0 && TO_SIZE(op) > pid_count) {
     DIE(EXIT_FAILURE, MSGPIDIDXTOOLARGE, op);
+  }
 
   for(st i = TO_SIZE(optind); i < TO_SIZE(argc); i++) {
     errno = 0;
     pid_t pid = static_cast<pid_t>(strtol(argv[i], nullptr, 0));
 
-    if(errno || pid <= 0)
+    if(errno || pid <= 0) {
       DIE(EXIT_FAILURE, MSGINVALIDPID, argv[i]);
+    }
 
 #if       defined(_WIN32)
-    if(pid % 4)
+    if(pid % 4) {
       COMPLAIN(MSGWIN32MOD4WARN, static_cast<int>(pid));
+    }
 #endif // defined(_WIN32)
 
     pids.push_back(pid);
@@ -570,8 +594,9 @@ std::cerr << PACKAGE_STRING << std::endl;
     });
   }
 
-  for(thread& t : threads)
+  for(thread& t : threads) {
     t.join();
+  }
 
   return process_codes(codes, pids, op);
 }
