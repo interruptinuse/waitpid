@@ -9,6 +9,7 @@ export GZIP="--rsyncable --no-name -9"
 autoreconf -fvi
 ./configure --host=i686-w64-mingw32 CXXFLAGS="-g0"
 
+make clean
 make
 i686-w64-mingw32-strip --strip-all waitpid.exe
 
