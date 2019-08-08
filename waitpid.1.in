@@ -110,6 +110,25 @@ $ waitpid -C2 70 40 10
 .PP
 Wait for the three processes to finish, then return the exit code of PID 40.
 
+.SH EXIT VALUES
+.IX Header "EXIT VALUES"
+Unless \(lq-C(\fIN\fR|\fBmin\fR|\fBmax\fR)\(rq is specified,
+.IR waitpid (1)
+will use the following exit values:
+
+.TP
+\fBEXIT_SUCCESS\fR (\fB0\fR)
+No fatal errors have occurred.
+
+.TP
+\fBEXIT_FAILURE\fR (\fB1\fR)
+A fatal error has occurred.  Most likely insufficient permissions for
+.IR ptrace (2).
+
+.TP
+\fB2\fR
+The command line was invalid.
+
 .SH BUGS
 .IX Header "BUGS"
 .nr step 1 1

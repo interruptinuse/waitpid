@@ -541,7 +541,7 @@ int main(int argc, char **argv) {
       double d = strtod(optarg, nullptr);
 
       if(errno || d <= 0) {
-        DIE(EXIT_FAILURE, MSGINVALIDDELAY, optarg);
+        DIE(2, MSGINVALIDDELAY, optarg);
       }
 
       delay = d;
@@ -560,7 +560,7 @@ int main(int argc, char **argv) {
       op = static_cast<int>(strtol(optarg, &endptr, 0));
 
       if(errno || op < 0 || endptr == optarg) {
-        DIE(EXIT_FAILURE, MSGINVALIDCODE, optarg);
+        DIE(2, MSGINVALIDCODE, optarg);
       }
 
       break;
@@ -573,16 +573,16 @@ int main(int argc, char **argv) {
       std::cerr << PACKAGE_STRING << std::endl;
       exit(EXIT_FAILURE);
     case ':':
-      DIE(EXIT_FAILURE, MSGGETOPTNOARG, optopt);
+      DIE(2, MSGGETOPTNOARG, optopt);
     case '?':
-      DIE(EXIT_FAILURE, MSGGETOPTUNKOPT, optopt);
+      DIE(2, MSGGETOPTUNKOPT, optopt);
     default:
-      DIE(EXIT_FAILURE, MSGGETOPTUNK);
+      DIE(2, MSGGETOPTUNK);
     }
   }
 
   if(optind >= argc) {
-    DIE(EXIT_FAILURE, MSGNOPIDS);
+    DIE(2, MSGNOPIDS);
   }
 
   checkrc = !!op;
@@ -591,7 +591,7 @@ int main(int argc, char **argv) {
   codes.resize(pid_count, -1);
 
   if(op > 0 && TO_SIZE(op) > pid_count) {
-    DIE(EXIT_FAILURE, MSGPIDIDXTOOLARGE, op);
+    DIE(2, MSGPIDIDXTOOLARGE, op);
   }
 
   for(st i = TO_SIZE(optind); i < TO_SIZE(argc); i++) {
@@ -599,7 +599,7 @@ int main(int argc, char **argv) {
     pid_t pid = static_cast<pid_t>(strtol(argv[i], nullptr, 0));
 
     if(errno || pid <= 0) {
-      DIE(EXIT_FAILURE, MSGINVALIDPID, argv[i]);
+      DIE(2, MSGINVALIDPID, argv[i]);
     }
 
 #if       defined(_WIN32)
