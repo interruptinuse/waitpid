@@ -38,7 +38,10 @@ OPTIONS
 
 extern "C" {
 #if    defined(__unix__)
-# define  _POSIX_C_SOURCE  200809L
+# pragma GCC diagnostic push
+# pragma GCC diagnostic ignored "-Wunused-macros"
+#   define  _POSIX_C_SOURCE  200809L
+# pragma GCC diagnostic pop
 # include <unistd.h>
 # include <sysexits.h>
 # include <signal.h>
@@ -148,16 +151,16 @@ void __COMPLAIN(const char *func, int line, const char *format, Ts... args) {
   "WARNING: PID is not a multiple of 4 and is likely incorrect: %d"
 
 
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wshadow"
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wshadow"
 using pid_t =
-#pragma clang diagnostic pop
 #if    defined(_WIN32)
   int
 #elif  defined(__unix__)
   pid_t
 #endif
 ;
+#pragma GCC diagnostic pop
 
 static std::mutex iomtx;
 
@@ -267,6 +270,9 @@ struct win32ntstatus win32_unusual_exit(DWORD rc) {
 
 
 #if    defined(__unix__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wglobal-constructors"
+#pragma clang diagnostic ignored "-Wexit-time-destructors"
 static string sysexits[] = {
   "EX_USAGE",       // 64
   "EX_DATAERR",     // 65
@@ -284,6 +290,7 @@ static string sysexits[] = {
   "EX_NOPERM",      // 77
   "EX_CONFIG",      // 78
 };
+#pragma clang diagnostic pop
 
 string unix_sysexit(int rc) {
   if(rc >= EX__BASE && rc <= EX__MAX) {
