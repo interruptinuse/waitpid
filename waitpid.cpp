@@ -160,10 +160,6 @@ using pid_t =
 ;
 
 static std::mutex iomtx;
-#define IOCRITICAL(...)  do {               \
-  std::scoped_lock<std::mutex> lock(iomtx); \
-  __VA_ARGS__ ;                             \
-} while(0)
 
 void dsleep(double secs) {
   auto delay = std::chrono::microseconds(static_cast<long>(secs*1'000'000));
@@ -283,12 +279,6 @@ int waitpidnorc(pid_t pid, double delay) {
 
   if(GetExitCodeProcess(ph, &rc) == FALSE) {
     DIE(EXIT_FAILURE, MSGGECPFAIL, GetLastError());
-  }
-
-  win32ntstatus d = win32_unusual_exit(rc);
-
-  if(d.rc != 0) {
-    COMPLAIN(MSGWIN32UNUSUALEXIT, pid, d.macro, d.rc, d.rc);
   }
 
   return rc;
@@ -589,8 +579,18 @@ int main(int argc, char **argv) {
 
     pids.push_back(pid);
 
-    threads.emplace_back(waiter, pid, delay, checkrc, [&codes, i](int rc) {
-      IOCRITICAL({ codes[i-TO_SIZE(optind)] = rc; });
+    threads.emplace_back(waiter, pid, delay, checkrc, [=, &codes](int rc) {
+      std::lock_guard lock(iomtx);
+
+      codes[i-TO_SIZE(optind)] = rc;
+
+#if       defined(_WIN32)
+      win32ntstatus d = win32_unusual_exit(rc);
+
+      if(d.rc != 0) {
+        COMPLAIN(MSGWIN32UNUSUALEXIT, pid, d.macro, d.rc, d.rc);
+      }
+#endif
     });
   }
 
