@@ -37,26 +37,25 @@ OPTIONS
 
 
 extern "C" {
+#if    defined(__unix__)
+# define  _POSIX_C_SOURCE  200809L
+# include <unistd.h>
+# include <sysexits.h>
+# include <signal.h>
+# include <sys/wait.h>
+#endif
+
 #if    defined(__linux__)
 # include <sys/user.h>
 # include <sys/ptrace.h>
-#endif
-
-#if    defined(__FreeBSD__)
+#elif  defined(__FreeBSD__)
 # include <sys/cdefs.h>
 # include <machine/reg.h>
 # include <sys/types.h>
 # include <sys/ptrace.h>
-#endif
-
-#if    defined(_WIN32)
+#elif  defined(_WIN32)
 # include <windows.h>
 # include <synchapi.h>
-#elif  defined(__unix__)
-# define  _POSIX_C_SOURCE  200809L
-# include <unistd.h>
-# include <signal.h>
-# include <sys/wait.h>
 #endif
 }
 
@@ -122,6 +121,8 @@ void __COMPLAIN(const char *file, const char *func, int line,
   "FATAL: waitpid(%d, 0, 0) failed: %s"
 #define  MSGGETREGSFAIL       \
   "FATAL: ptrace(2) register inspection for PID %d failed: %s"
+#define  MSGSYSEXITS          \
+  "NOTE: PID %d has exited with a possible sysexits.h value: %s (exit status %d)"
 #define  MSGWIN32UNUSUALEXIT  \
   "NOTE: PID %d has exited unusually: %s (exit status 0x%04X/%d)"
 #define  MSGSYSKILL           \
@@ -174,10 +175,11 @@ struct win32ntstatus {
 };
 
 /* The following is a non-exhaustive list of possible *abnormal termination*
- * exit codes.  waitpid(1) must only warn about well-known abnormal termination
- * exit codes which are set by the operating system or the runtime.
- * All these codes are from NTSTATUS;  WinError codes are apparently only
- * returned by processes normally, and we don't want to warn about that.
+ * exit codes.  waitpid(1) must only warn about well-known exit codes which are
+ * either set by the operating system or the runtime, or are unique convention.
+ * On Windows, all these codes are from NTSTATUS;  WinError codes
+ * are apparently only returned by some processes, and we don't want to warn
+ * about that.
  *
  * REFERENCES:
  * [1] List of peculiar exit codes on Windows:
@@ -261,6 +263,35 @@ struct win32ntstatus win32_unusual_exit(DWORD rc) {
   }
 
   return {0, ""};
+}
+#endif
+
+
+#if    defined(__unix__)
+static string sysexits[] = {
+  "EX_USAGE",       // 64
+  "EX_DATAERR",     // 65
+  "EX_NOINPUT",     // 66
+  "EX_NOUSER",      // 67
+  "EX_NOHOST",      // 68
+  "EX_UNAVAILABLE", // 69
+  "EX_SOFTWARE",    // 70
+  "EX_OSERR",       // 71
+  "EX_OSFILE",      // 72
+  "EX_CANTCREAT",   // 73
+  "EX_IOERR",       // 74
+  "EX_TEMPFAIL",    // 75
+  "EX_PROTOCOL",    // 76
+  "EX_NOPERM",      // 77
+  "EX_CONFIG",      // 78
+};
+
+string unix_sysexit(int rc) {
+  if(rc >= EX__BASE && rc <= EX__MAX) {
+    return sysexits[rc-EX__BASE];
+  }
+
+  return "";
 }
 #endif
 
@@ -589,6 +620,12 @@ int main(int argc, char **argv) {
 
       if(d.rc != 0) {
         COMPLAIN(MSGWIN32UNUSUALEXIT, pid, d.macro, d.rc, d.rc);
+      }
+#elif     defined(__unix__)
+      string sysexit = unix_sysexit(rc);
+
+      if(sysexit != "") {
+        COMPLAIN(MSGSYSEXITS, pid, sysexit.c_str(), rc);
       }
 #endif
     });
