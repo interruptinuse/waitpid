@@ -123,7 +123,7 @@ void __COMPLAIN(const char *file, const char *func, int line,
 #define  MSGGETREGSFAIL       \
   "FATAL: ptrace(2) register inspection for PID %d failed: %s"
 #define  MSGWIN32UNUSUALEXIT  \
-  "WARNING: PID %d has exited unusually: %s (exit status 0x%04X/%d)"
+  "NOTE: PID %d has exited unusually: %s (exit status 0x%04X/%d)"
 #define  MSGSYSKILL           \
   "WARNING: PID %d terminated by signal, assuming 128+SIGNAL: %d"
 #define  MSGBADRETCODE        \
