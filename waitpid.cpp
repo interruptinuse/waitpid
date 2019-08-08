@@ -96,14 +96,13 @@ using st = vector<int>::size_type;
 #define STRERROR  strerror(errno)
 // all this so i don't have to build a new mingw which supports __VA_OPT__
 template<typename ...Ts>
-void __COMPLAIN(const char *file, const char *func, int line,
-                const char *format, Ts... args) {
-  fprintf(stderr, "%s[%s()#%d]: ", file, func, line);
+void __COMPLAIN(const char *func, int line, const char *format, Ts... args) {
+  fprintf(stderr, "waitpid[%s#%d]: ", func, line);
   fprintf(stderr, format, args...);
   fprintf(stderr, "\n");
   fflush(stderr);
 }
-#define COMPLAIN(...)  __COMPLAIN(__FILE__, __func__, __LINE__, __VA_ARGS__)
+#define COMPLAIN(...)  __COMPLAIN(__func__, __LINE__, __VA_ARGS__)
 #define DIE(status, ...)  do{COMPLAIN(__VA_ARGS__);exit(status);}while(0)
 
 
