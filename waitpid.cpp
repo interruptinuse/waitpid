@@ -97,7 +97,10 @@ using st = vector<int>::size_type;
 template<typename ...Ts>
 void __COMPLAIN(const char *func, int line, const char *format, Ts... args) {
   fprintf(stderr, "waitpid[%s#%d]: ", func, line);
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wformat-security"
   fprintf(stderr, format, args...);
+#pragma GCC diagnostic pop
   fprintf(stderr, "\n");
   fflush(stderr);
 }
