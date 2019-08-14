@@ -38,10 +38,6 @@ OPTIONS
 
 extern "C" {
 #if    defined(__unix__)
-# pragma GCC diagnostic push
-# pragma GCC diagnostic ignored "-Wunused-macros"
-#   define  _POSIX_C_SOURCE  200809L
-# pragma GCC diagnostic pop
 # include <unistd.h>
 # include <sysexits.h>
 # include <signal.h>
