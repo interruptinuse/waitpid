@@ -166,7 +166,7 @@ void dsleep(double secs) {
 #if    defined(_WIN32)
 struct win32ntstatus {
   DWORD       rc;
-  const char* macro;
+  const char* desc;
 };
 
 /* The following is a non-exhaustive list of possible *abnormal termination*
@@ -648,7 +648,7 @@ int main(int argc, char **argv) {
       win32ntstatus d = win32_unusual_exit(rc);
 
       if(d.rc != 0) {
-        COMPLAIN(MSGWIN32UNUSUALEXIT, pid, d.macro, d.rc, d.rc);
+        COMPLAIN(MSGWIN32UNUSUALEXIT, pid, d.desc, d.rc, d.rc);
       }
 #elif     defined(__unix__)
       std::string sysexit = unix_sysexit(rc);
