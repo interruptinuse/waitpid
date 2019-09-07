@@ -84,13 +84,7 @@ extern "C" {
 #endif
 
 
-using std::vector;
-using std::string;
-using std::thread;
-using std::function;
-
-
-using st = vector<int>::size_type;
+using st = std::vector<int>::size_type;
 #define TO_SIZE(e)  static_cast<st>(e)
 #define STRERROR  strerror(errno)
 // all this so i don't have to build a new mingw which supports __VA_OPT__
@@ -278,7 +272,7 @@ struct win32ntstatus win32_unusual_exit(DWORD rc) {
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wglobal-constructors"
 #pragma clang diagnostic ignored "-Wexit-time-destructors"
-static string sysexits[] = {
+static std::string sysexits[] = {
   "EX_USAGE",       // 64
   "EX_DATAERR",     // 65
   "EX_NOINPUT",     // 66
@@ -297,7 +291,7 @@ static string sysexits[] = {
 };
 #pragma clang diagnostic pop
 
-string unix_sysexit(int rc) {
+std::string unix_sysexit(int rc) {
   if(rc >= EX__BASE && rc <= EX__MAX) {
     return sysexits[rc-EX__BASE];
   }
@@ -497,7 +491,7 @@ int waitpidrc(pid_t pid, double delay) {
 }
 
 int waiter(pid_t pid, double delay, bool checkrc,
-           function<void(int)> callback) {
+           std::function<void(int)> callback) {
   int rc = (checkrc ? waitpidrc : waitpidnorc)(pid, delay);
 
   if(checkrc) {
@@ -507,7 +501,7 @@ int waiter(pid_t pid, double delay, bool checkrc,
   return rc;
 }
 
-int process_codes(vector<int>& codes, vector<pid_t>& pids, int op) {
+int process_codes(std::vector<int>& codes, std::vector<pid_t>& pids, int op) {
   switch(op) {
   case 0:
     return 0;
@@ -532,9 +526,9 @@ int process_codes(vector<int>& codes, vector<pid_t>& pids, int op) {
 
 
 int main(int argc, char **argv) {
-  vector<pid_t> pids;
-  vector<thread> threads;
-  vector<int> codes;
+  std::vector<pid_t> pids;
+  std::vector<std::thread> threads;
+  std::vector<int> codes;
   double delay = 0.5;
   int op = 0;
   bool checkrc = false;
@@ -633,7 +627,7 @@ int main(int argc, char **argv) {
         COMPLAIN(MSGWIN32UNUSUALEXIT, pid, d.macro, d.rc, d.rc);
       }
 #elif     defined(__unix__)
-      string sysexit = unix_sysexit(rc);
+      std::string sysexit = unix_sysexit(rc);
 
       if(sysexit != "") {
         COMPLAIN(MSGSYSEXITS, pid, sysexit.c_str(), rc);
@@ -642,7 +636,7 @@ int main(int argc, char **argv) {
     });
   }
 
-  for(thread& t : threads) {
+  for(std::thread& t : threads) {
     t.join();
   }
 
