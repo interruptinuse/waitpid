@@ -121,7 +121,7 @@ void __COMPLAIN(const char *func, int line, const char *format, Ts... args) {
 #define  MSGWIN32UNUSUALEXIT  \
   "NOTE: PID %d has exited unusually: %s (exit status 0x%04X/%d)"
 #define  MSGSYSKILL           \
-  "WARNING: PID %d terminated by signal, assuming 128+SIGNAL: %d"
+  "WARNING: PID %d terminated by signal (%s), assuming 128+SIGNAL: %d"
 #define  MSGBADRETCODE        \
   "ERROR: Failed to determine return code of PID %d, assuming 255"
 #define  MSGINVALIDDELAY      \
@@ -301,6 +301,29 @@ std::string unix_sysexit(int rc) {
 #endif
 
 
+#if       defined(__linux__)
+extern const char *sys_sigabbrev[];
+#endif // defined(__linux__)
+
+#if       defined(__unix__)
+std::string unix_sig2string(int s) {
+#if       defined(__linux__)
+  const char *signame = sys_sigabbrev[s];
+#else
+  const char *signame = sys_signame[s];
+#endif
+  if(signame == nullptr) {
+    return "unknown";
+  }
+
+  std::string result = signame;
+  result.insert(0, "SIG");
+
+  return result;
+}
+#endif // defined(__unix__)
+
+
 int waitpidnorc(pid_t pid, double delay) {
 #if    defined(_WIN32)
   DWORD rc = 0;
@@ -383,7 +406,7 @@ int waitpidrc(pid_t pid, double delay) {
           case 0x25: // sys_kill
             // depends on the shell but 128+SIGNAL is most popular
             regs.ebx = 128+regs.ecx;
-            COMPLAIN(MSGSYSKILL, pid, static_cast<int>(regs.ebx));
+            COMPLAIN(MSGSYSKILL, pid, unix_sig2string(regs.ecx).c_str(), static_cast<int>(regs.ebx));
             [[fallthrough]];
           case 0x01: // sys_exit
             [[fallthrough]];
@@ -396,7 +419,7 @@ int waitpidrc(pid_t pid, double delay) {
           case 0x3e: // sys_kill
             // depends on the shell but 128+SIGNAL is most popular
             regs.rdi = 128+regs.rsi;
-            COMPLAIN(MSGSYSKILL, pid, static_cast<int>(regs.rdi));
+            COMPLAIN(MSGSYSKILL, pid, unix_sig2string(regs.rsi).c_str(), static_cast<int>(regs.rdi));
             [[fallthrough]];
           case 0x3C: // sys_exit
             [[fallthrough]];
@@ -414,8 +437,9 @@ int waitpidrc(pid_t pid, double delay) {
           // the process has received a terminating signal.  This is the same
           // situation as with sys_kill handling above.
           if(wifstopped) {
-            COMPLAIN(MSGSYSKILL, pid, static_cast<int>(128+retcode));
-            return static_cast<int>(128+retcode);
+            int rc = static_cast<int>(retcode);
+            COMPLAIN(MSGSYSKILL, pid, unix_sig2string(rc).c_str(), 128+rc);
+            return static_cast<int>(128+rc);
           }
 
           // if retcode is set to our default, set it to 255, which is basically
