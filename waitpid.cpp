@@ -190,7 +190,7 @@ struct win32ntstatus {
  *   https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-erref/596a1078-e883-4972-9bbc-49e60bebca55
  *
  * [3] NTSTATUS values, tab separated:
- *   https://pastebin.com/raw/CqLreHhE
+ *   https://gist.github.com/interruptinuse/3a8211e3aa9f6b660844d2f0b1bc303c
  *
  * [4] Windows System Error Codes:
  *   https://www.symantec.com/connect/articles/windows-system-error-codes-exit-codes-description
@@ -207,6 +207,12 @@ static win32ntstatus win32ntstatuses[] = {
   { 0xC0000409, "STATUS_STACK_BUFFER_OVERRUN, or a fastfail exception" },
   { 0x000000FF, "terminated with error reporting" },
   { 0xCFFFFFFF, "terminated as non-responsive" },
+
+  /* XXX: I'm not sure if any status code below this comment will be set by the
+   * system and as such should be reported as abnormal, but I've added the most
+   * plausible-looking codes anyway. */
+
+  /* uncategorized status codes */
   { 0xC0000001, "STATUS_UNSUCCESSFUL" },
   { 0xC0000005, "STATUS_ACCESS_VIOLATION" },
   { 0xC000001D, "STATUS_ILLEGAL_INSTRUCTION" },
