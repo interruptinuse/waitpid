@@ -640,7 +640,7 @@ int main(int argc, char **argv) {
     pids.push_back(pid);
 
     threads.emplace_back(waiter, pid, delay, checkrc, [=, &codes](int rc) {
-      std::lock_guard lock(iomtx);
+      std::lock_guard<std::mutex> lock(iomtx);
 
       codes[i-TO_SIZE(optind)] = rc;
 
