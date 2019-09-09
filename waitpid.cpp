@@ -491,7 +491,7 @@ int waitpidrc(pid_t pid, double delay) {
   struct reg registers;
 
   errno = 0;
-  if(ptrace(PT_ATTACH, pid, (caddr_t)0, SIGSTOP)) {
+  if(ptrace(PT_ATTACH, pid, NULL, 0)) {
     DIE(EXIT_FAILURE, MSGPTRACEATTACHFAIL, pid, STRERROR);
   }
 
@@ -501,8 +501,6 @@ int waitpidrc(pid_t pid, double delay) {
     DIE(EXIT_FAILURE, MSGWAITPIDUTFAIL, pid, STRERROR);
   }
 
-  // TODO: should probably send SIGSTOP from all ptraces starting here and
-  // TODO: until PT_READ_D, which should resume the process
   while(ptrace(PT_TO_SCE, pid, (caddr_t)1, 0) == 0) {
     if(wait(0) == -1) {
       break;
