@@ -312,7 +312,7 @@ std::string unix_sig2string(int s) {
 #else
   const char *signame = sys_signame[s];
 #endif
-  if(signame == nullptr) {
+  if(s >= NSIG || signame == nullptr || strlen(signame) == 0) {
     return "unknown";
   }
 
