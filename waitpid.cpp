@@ -437,17 +437,18 @@ int waitpidrc(pid_t pid, double delay) {
           }
 
           switch(regs.SYSCALL_NUMBER_REGISTER) {
-          case __NR_kill: // sys_kill
+          case __NR_kill:
             // depends on the shell but 128+SIGNAL is most popular
             regs.SYSCALL_ARG1_REGISTER = 128+regs.SYSCALL_ARG2_REGISTER;
-            COMPLAIN(MSGSYSKILL,
-                     pid,
-                     unix_sig2string(regs.SYSCALL_ARG2_REGISTER).c_str(),
-                     static_cast<int>(regs.SYSCALL_ARG1_REGISTER));
+            COMPLAIN(
+              MSGSYSKILL,
+              pid,
+              unix_sig2string(regs.SYSCALL_ARG2_REGISTER).c_str(),
+              static_cast<int>(regs.SYSCALL_ARG1_REGISTER));
             [[fallthrough]];
-          case __NR_exit: // sys_exit
+          case __NR_exit:
             [[fallthrough]];
-          case __NR_exit_group: // sys_exit_group
+          case __NR_exit_group:
             ptrace(PTRACE_DETACH, pid, 0, 0);
             return static_cast<int>(regs.SYSCALL_ARG1_REGISTER);
           }
