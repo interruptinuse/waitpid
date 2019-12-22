@@ -47,6 +47,7 @@ extern "C" {
 #if    defined(__linux__)
 # include <sys/user.h>
 # include <sys/ptrace.h>
+# include <asm/unistd.h>
 #elif  defined(__FreeBSD__)
 # include <sys/cdefs.h>
 # include <machine/reg.h>
@@ -402,34 +403,32 @@ int waitpidrc(pid_t pid, double delay) {
           }
 
 #if       defined(__i386)
-          switch(regs.orig_eax) {
-          case 0x25: // sys_kill
-            // depends on the shell but 128+SIGNAL is most popular
-            regs.ebx = 128+regs.ecx;
-            COMPLAIN(MSGSYSKILL, pid, unix_sig2string(regs.ecx).c_str(), static_cast<int>(regs.ebx));
-            [[fallthrough]];
-          case 0x01: // sys_exit
-            [[fallthrough]];
-          case 0xFC: // sys_exit_group
-            ptrace(PTRACE_DETACH, pid, 0, 0);
-            return static_cast<int>(regs.ebx);
-          }
+# define SYSCALL_NUMBER_REGISTER orig_eax
+# define SYSCALL_ARG1_REGISTER   ebx
+# define SYSCALL_ARG2_REGISTER   ecx
 #elif     defined(__x86_64__)
-          switch(regs.orig_rax) {
-          case 0x3e: // sys_kill
-            // depends on the shell but 128+SIGNAL is most popular
-            regs.rdi = 128+regs.rsi;
-            COMPLAIN(MSGSYSKILL, pid, unix_sig2string(regs.rsi).c_str(), static_cast<int>(regs.rdi));
-            [[fallthrough]];
-          case 0x3C: // sys_exit
-            [[fallthrough]];
-          case 0xE7: // sys_exit_group
-            ptrace(PTRACE_DETACH, pid, 0, 0);
-            return static_cast<int>(regs.rdi);
-          }
+# define SYSCALL_NUMBER_REGISTER orig_rax
+# define SYSCALL_ARG1_REGISTER   rdi
+# define SYSCALL_ARG2_REGISTER   rsi
 #else
 # error "Unsupported architecture for GNU/Linux"
 #endif
+          switch(regs.SYSCALL_NUMBER_REGISTER) {
+          case __NR_kill: // sys_kill
+            // depends on the shell but 128+SIGNAL is most popular
+            regs.SYSCALL_ARG1_REGISTER = 128+regs.SYSCALL_ARG2_REGISTER;
+            COMPLAIN(MSGSYSKILL,
+                     pid,
+                     unix_sig2string(regs.SYSCALL_ARG2_REGISTER).c_str(),
+                     static_cast<int>(regs.SYSCALL_ARG1_REGISTER));
+            [[fallthrough]];
+          case __NR_exit: // sys_exit
+            [[fallthrough]];
+          case __NR_exit_group: // sys_exit_group
+            ptrace(PTRACE_DETACH, pid, 0, 0);
+            return static_cast<int>(regs.SYSCALL_ARG1_REGISTER);
+          }
+
           unsigned long retcode = std::numeric_limits<unsigned long>::max();
           ptrace(PTRACE_GETEVENTMSG, pid, 0, &retcode);
 
