@@ -452,6 +452,9 @@ int waitpidrc(pid_t pid, double delay) {
             ptrace(PTRACE_DETACH, pid, 0, 0);
             return static_cast<int>(regs.SYSCALL_ARG1_REGISTER);
           }
+#undef SYSCALL_NUMBER_REGISTER
+#undef SYSCALL_ARG1_REGISTER
+#undef SYSCALL_ARG2_REGISTE
 
           unsigned long retcode = std::numeric_limits<unsigned long>::max();
           ptrace(PTRACE_GETEVENTMSG, pid, 0, &retcode);
