@@ -54,6 +54,7 @@ extern "C" {
 # include <machine/reg.h>
 # include <sys/types.h>
 # include <sys/ptrace.h>
+# include <sys/syscall.h>
 #elif  defined(_WIN32)
 # include <windows.h>
 # include <synchapi.h>
@@ -524,7 +525,7 @@ int waitpidrc(pid_t pid, double delay) {
 #else
 # error "Unsupported architecture"
 #endif
-    if(registers.SCNUM == 1) { // exit syscall
+    if(registers.SCNUM == SYS_exit) {
       int rc = ptrace(PT_READ_D, pid, (caddr_t)registers.STPTR+sizeof(int), 0);
       ptrace(PT_DETACH, pid, (caddr_t)1, 0);
       return rc;
