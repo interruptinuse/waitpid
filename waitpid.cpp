@@ -202,6 +202,7 @@ static win32ntstatus win32ntstatuses[] = {
   { 0xC0000409, "STATUS_STACK_BUFFER_OVERRUN, or a fastfail exception" },
   { 0x000000FF, "terminated with error reporting" },
   { 0xCFFFFFFF, "terminated as non-responsive" },
+  { 0xC0000374, "STATUS_HEAP_CORRUPTION" },
 
   /* XXX: I'm not sure if any status code below this comment will be set by the
    * system and as such should be reported as abnormal, but I've added the most
