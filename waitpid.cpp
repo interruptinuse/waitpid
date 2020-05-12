@@ -502,12 +502,13 @@ int waitpidrc(pid_t pid, double delay) {
 
   int status = 0;
 
-  if(waitpid(pid, &status, WUNTRACED) != pid) {
+  if(waitpid(pid, &status, WUNTRACED|WEXITED) != pid) {
     DIE(EXIT_FAILURE, MSGWAITPIDUTFAIL, pid, STRERROR);
   }
 
   while(ptrace(PT_TO_SCE, pid, (caddr_t)1, 0) == 0) {
-    if(wait(0) == -1) {
+    errno = 0;
+    if(waitpid(pid, NULL, WUNTRACED|WEXITED) == -1) {
       break;
     }
 
