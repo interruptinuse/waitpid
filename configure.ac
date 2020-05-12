@@ -9,6 +9,8 @@ dnl AC_PROG_CC
 dnl AC_PROG_CC_C99
 AC_PROG_CXX
 dnl AX_CXX_COMPILE_STDCXX_17([noext], [mandatory])
+AC_PATH_PROG([BASH], [bash])
+test z"$BASH" == z && AC_MSG_ERROR([bash not found])
 
 FLAG_ADD([CXXFLAGS], [C++], [compiler], [-Wall])
 FLAG_ADD([CXXFLAGS], [C++], [compiler], [-Wpedantic])
