@@ -611,7 +611,7 @@ int main(int argc, char **argv) {
 #define PACKAGE_STRING "waitpid"
 #endif // PACKAGE_STRING
       std::cerr << PACKAGE_STRING << std::endl;
-      exit(EXIT_FAILURE);
+      exit(2);
     case ':':
       DIE(2, MSGGETOPTNOARG, optopt);
     case '?':
