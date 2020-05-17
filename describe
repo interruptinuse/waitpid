@@ -1,0 +1,11 @@
+#!/usr/bin/env sh
+
+if [ -d .git ]; then
+  DESCRIBE="$(git describe --tags 2>/dev/null)"
+fi
+
+if [ -z "$DESCRIBE" ]; then
+  cat RELEASE
+else
+  echo "$DESCRIBE" | sed 's/^v//g'
+fi

@@ -1,5 +1,5 @@
 AC_PREREQ([2.60])
-AC_INIT([waitpid], [m4_esyscmd_s([cat RELEASE])], [interruptinuse@gmail.com])
+AC_INIT([waitpid], [m4_esyscmd_s([./describe])], [interruptinuse@gmail.com])
 AM_INIT_AUTOMAKE([-Wall -Werror foreign silent-rules])
 AC_CONFIG_MACRO_DIRS([m4])
 
