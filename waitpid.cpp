@@ -48,6 +48,7 @@ extern "C" {
 # include <sys/user.h>
 # include <sys/ptrace.h>
 # include <asm/unistd.h>
+# include <asm/ptrace.h>
 #elif  defined(__FreeBSD__)
 # include <sys/cdefs.h>
 # include <machine/reg.h>
@@ -397,23 +398,33 @@ int waitpidrc(pid_t pid, double delay) {
         break;
       case SIGTRAP: /* tracer event */
         if(status & (PTRACE_EVENT_EXIT << 8)) {
-          struct user_regs_struct regs;
-          errno = 0;
-          if(ptrace(PTRACE_GETREGS, pid, 0, &regs) == -1) {
-            DIE(EXIT_FAILURE, MSGGETREGSFAIL, pid, STRERROR);
-          }
-
 #if       defined(__i386)
+# define REGS_STRUCT             user_regs_struct
 # define SYSCALL_NUMBER_REGISTER orig_eax
 # define SYSCALL_ARG1_REGISTER   ebx
 # define SYSCALL_ARG2_REGISTER   ecx
 #elif     defined(__x86_64__)
+# define REGS_STRUCT             user_regs_struct
 # define SYSCALL_NUMBER_REGISTER orig_rax
 # define SYSCALL_ARG1_REGISTER   rdi
 # define SYSCALL_ARG2_REGISTER   rsi
+#elif     defined(__ARM_EABI__)
+# define REGS_STRUCT             user_regs
+# define SYSCALL_NUMBER_REGISTER ARM_r7
+# define SYSCALL_ARG1_REGISTER   ARM_r0
+# define SYSCALL_ARG2_REGISTER   ARM_r1
 #else
 # error "Unsupported architecture for GNU/Linux"
 #endif
+
+# define _PTRACE_GETREGS         static_cast<__ptrace_request>(PTRACE_GETREGS)
+
+          struct REGS_STRUCT regs;
+          errno = 0;
+          if(ptrace(_PTRACE_GETREGS, pid, 0, &regs) == -1) {
+            DIE(EXIT_FAILURE, MSGGETREGSFAIL, pid, STRERROR);
+          }
+
           switch(regs.SYSCALL_NUMBER_REGISTER) {
           case __NR_kill: // sys_kill
             // depends on the shell but 128+SIGNAL is most popular
