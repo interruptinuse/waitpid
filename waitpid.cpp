@@ -73,6 +73,7 @@ extern "C" {
 #include  <algorithm>
 #include  <functional>
 #include  <stdexcept>
+#include  <optional>
 #include  <limits>
 
 
@@ -144,6 +145,8 @@ void __COMPLAIN(const char *func, int line, const char *format, Ts... args) {
   "FATAL: Could not interpret argument as a valid PID: %s"
 #define  MSGWIN32MOD4WARN     \
   "WARNING: PID is not a multiple of 4 and is likely incorrect: %d"
+#define  MSGDELAYIGNORED      \
+  "WARNING: DELAY set, but is ignored since we're using ptrace(2)"
 
 
 #pragma GCC diagnostic push
@@ -572,7 +575,7 @@ int main(int argc, char **argv) {
   std::vector<pid_t> pids;
   std::vector<std::thread> threads;
   std::vector<int> codes;
-  double delay = 0.5;
+  std::optional<double> delay;
   int op = 0;
   bool checkrc = false;
 
@@ -642,6 +645,15 @@ int main(int argc, char **argv) {
     DIE(2, MSGPIDIDXTOOLARGE, op);
   }
 
+#if       !defined(_WIN32)
+  if(delay && op) {
+    COMPLAIN(MSGDELAYIGNORED);
+  }
+#endif // !defined(_WIN32)
+  if(!delay) {
+    delay = 0.5;
+  }
+
   for(st i = TO_SIZE(optind); i < TO_SIZE(argc); i++) {
     errno = 0;
     pid_t pid = static_cast<pid_t>(strtol(argv[i], nullptr, 0));
@@ -658,7 +670,7 @@ int main(int argc, char **argv) {
 
     pids.push_back(pid);
 
-    threads.emplace_back(waiter, pid, delay, checkrc, [=, &codes](int rc) {
+    threads.emplace_back(waiter, pid, delay.value(), checkrc, [=, &codes](int rc) {
       std::lock_guard<std::mutex> lock(iomtx);
 
       codes[i-TO_SIZE(optind)] = rc;
