@@ -304,17 +304,25 @@ std::string unix_sysexit(int rc) {
 #endif
 
 
-#if       defined(__linux__)
+#if       defined(__GLIBC__)
+# include <features.h>
+# if      ! __GLIBC_PREREQ(2, 32)
 extern const char *sys_sigabbrev[];
-#endif // defined(__linux__)
+# endif // ! __GLIBC_PREREQ(2, 32)
+#endif // defined(__GLIBC__)
 
 #if       defined(__unix__)
 std::string unix_sig2string(int s) {
-#if       defined(__linux__)
-  const char *signame = sys_sigabbrev[s];
-#else
+# if       defined(__GLIBC__)
+  const char *signame =
+#   if      __GLIBC_PREREQ(2, 32)
+  sigabbrev_np(s);
+#   else
+  sys_sigabbrev[s];
+#   endif // __GLIBC_PREREQ(2, 32)
+# else
   const char *signame = sys_signame[s];
-#endif
+# endif
   if(s >= NSIG || signame == nullptr || strlen(signame) == 0) {
     return "unknown";
   }
