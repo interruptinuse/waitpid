@@ -1,5 +1,4 @@
-# grey 256 color
-CG=240
+CG=8 # "bright black" (gray) in 16 color ANSI
 # print colored "key" (variable name)
 _ck() {
   tput setaf $CG 2>/dev/null || printf ''
