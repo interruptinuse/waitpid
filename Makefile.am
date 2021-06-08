@@ -1,11 +1,11 @@
-EXTRA_DIST = build-aux dist.sh release.sh \
+EXTRA_DIST = build-aux dist.sh \
   README RELEASE mingw.thread.h mingw.mutex.h hourglass.ico \
-  waitpid.1.in .gitignore
+  waitpid.1.in waitpid.rc.in waitpid.rc .gitignore
 
 bin_PROGRAMS    = waitpid
 dist_man_MANS   = waitpid.1
-BUILT_SOURCES   = waitpid.1
-CLEANFILES      = waitpid.1
+BUILT_SOURCES   = waitpid.1 waitpid.rc
+CLEANFILES      = waitpid.1 waitpid.rc
 
 waitpid_SOURCES   = waitpid.cpp
 
@@ -33,6 +33,13 @@ waitpid.1: waitpid.1.in Makefile
 	$(PKG_V_SED)sed \
 	  -e 's/[@]PACKAGE_STRING[@]/$(PACKAGE_STRING)/g' \
 	  <$< >$@
+
+waitpid.rc: waitpid.rc.in Makefile
+	$(PKG_V_SED)sed \
+	 -e "s/_MAJOR_/$(shell ./describe | cut -d. -f1)/g" \
+	 -e "s/_MINOR_/$(shell ./describe | cut -d. -f2 | cut -d- -f1)/g" \
+	 <$< >$@
+
 
 PKG_V_GROFF   = $(PKG_V_GROFF_@AM_V@)
 PKG_V_GROFF_  = $(PKG_V_GROFF_@AM_DEFAULT_V@)
