@@ -1,6 +1,6 @@
 AC_PREREQ([2.60])
 
-AC_INIT([waitpid], [m4_esyscmd_s([./describe])], [interruptinuse@gmail.com])
+AC_INIT([waitpid], [m4_esyscmd_s([./build-aux/describe])], [interruptinuse@gmail.com])
 
 AC_CANONICAL_BUILD
 AC_CANONICAL_HOST

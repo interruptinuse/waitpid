@@ -36,8 +36,8 @@ waitpid.1: waitpid.1.in Makefile
 
 waitpid.rc: waitpid.rc.in Makefile
 	$(PKG_V_SED)sed \
-	 -e "s/_MAJOR_/$(shell ./describe | cut -d. -f1)/g" \
-	 -e "s/_MINOR_/$(shell ./describe | cut -d. -f2 | cut -d- -f1)/g" \
+	 -e "s/_MAJOR_/$(shell ./build-aux/describe | cut -d. -f1)/g" \
+	 -e "s/_MINOR_/$(shell ./build-aux/describe | cut -d. -f2 | cut -d- -f1)/g" \
 	 <$< >$@
 
 
