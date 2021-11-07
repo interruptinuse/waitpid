@@ -2,7 +2,9 @@
 /autom4te.cache/
 /compile
 /config.guess
+/config.guess~
 /config.sub
+/config.sub~
 /configure
 /depcomp
 /install-sh
