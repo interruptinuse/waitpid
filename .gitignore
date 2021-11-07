@@ -24,3 +24,5 @@
 /waitpid.exe
 /undertest.exe
 /*.tar.gz
+/.cache/
+compile_commands.json
