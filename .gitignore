@@ -25,4 +25,5 @@
 /undertest.exe
 /*.tar.gz
 /.cache/
+/.clangd/
 compile_commands.json
